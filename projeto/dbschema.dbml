@@ -1,0 +1,155 @@
+// Users
+Table User {
+    id int [pk, increment]
+    name varchar
+    email varchar
+    vat varchar
+    createdAt datetime
+    updatedAt datetime
+    deletedAt datetime
+}
+
+Table UserAddress {
+    userId int [not null, ref: > User.id]
+    addressId int [not null, ref: > Address.id]
+
+    Indexes {
+        (userId, addressId) [unique]
+    }
+}
+
+Table Address {
+    id int [pk, increment]
+    street varchar
+    number varchar
+    zip varchar
+    parish varchar // TODO Should this be a foreign key?
+    county varchar // TODO above
+    district varchar // TODO above
+    city varchar // TODO above
+    country varchar // TODO above
+    createdAt datetime
+    updatedAt datetime
+    deletedAt datetime
+}
+
+Table Consumer {
+    id int [pk, increment]
+    userId int [not null, ref: - User.id]
+    createdAt datetime
+    updatedAt datetime
+    deletedAt datetime
+}
+
+Table Supplier {
+    id int [pk, increment]
+    userId int [not null, ref: - User.id]
+    createdAt datetime
+    updatedAt datetime
+    deletedAt datetime
+}
+
+// Product
+Table ProductSpecification {
+    id int [pk, increment]
+    name varchar
+    description varchar
+    basePrice float
+    createdAt datetime
+    updatedAt datetime
+    deletedAt datetime
+}
+
+Table ProductSpecCategory {
+    productSpecificationId int [not null, ref: > ProductSpecification.id]
+    categoryId int [not null, ref: > Category.id]
+
+    Indexes {
+        (productSpecificationId, categoryId) [unique]
+    }
+}
+
+Table Category {
+    id int [pk, increment]
+    name varchar
+    parentCategoryId int [ref: > Category.id]
+    createdAt datetime
+    updatedAt datetime
+    deletedAt datetime
+}
+
+Table CategoryField {
+    categoryId int [not null, ref: > Category.id]
+    fieldId int [not null, ref: > Field.id]
+
+    Indexes {
+        (categoryId, fieldId) [unique]
+    }
+}
+
+Table Field {
+    id int [pk, increment]
+    name varchar
+    type FieldType
+    createdAt datetime
+    updatedAt datetime
+    deletedAt datetime
+}
+
+Enum FieldType {
+    "Text"
+    "Number"
+    "Date"
+    "Boolean"
+    "Enum" // If enum, then the field has a list of possible values, from FieldEnumValue 
+}
+
+Table FieldEnumValue {
+    fieldId int [not null, ref: > Field.id]
+    value varchar
+
+    Indexes {
+        (fieldId, value) [unique]
+    }
+}
+
+
+// A concrete product
+Table Product {
+    id int [pk, increment]
+    producerId int [not null, ref: > Supplier.id]
+    productSpecificationId int [not null, ref: > ProductSpecification.id]
+    createdAt datetime // Represents production date
+    updatedAt datetime
+    deletedAt datetime
+}
+
+// Orders
+Table Order {
+    id int [pk, increment]
+    consumerId int [not null, ref: > Consumer.id]
+    totalPaid float [null]
+    couponId int [ref: > Coupon.id]
+    createdAt datetime
+    updatedAt datetime
+    deletedAt datetime
+}
+
+Table OrderItem {
+    orderId int [not null, ref: > Order.id]
+    productId int [not null, ref: > Product.id]
+    quantity int
+
+    Indexes {
+        (orderId, productId) [unique]
+    }
+}
+
+Table Coupon {
+    id int [pk, increment]
+    code varchar
+    discount float
+    createdAt datetime
+    updatedAt datetime
+    deletedAt datetime
+}
