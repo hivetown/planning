@@ -49,6 +49,7 @@ Table Supplier {
     deletedAt datetime
 }
 
+// TODO productspecification should be the one to set the category field values. Just a relationship with fieldenumvalue?
 // Product
 Table ProductSpecification {
     id int [pk, increment]
@@ -104,6 +105,7 @@ Enum FieldType {
     "Enum" // If enum, then the field has a list of possible values, from FieldEnumValue 
 }
 
+// TODO rename this to something better
 Table FieldEnumValue {
     fieldId int [not null, ref: > Field.id]
     value varchar
@@ -113,12 +115,14 @@ Table FieldEnumValue {
     }
 }
 
+// TODO Product Discounts?
 
 // A concrete product
 Table Product {
     id int [pk, increment]
     producerId int [not null, ref: > Supplier.id]
     productSpecificationId int [not null, ref: > ProductSpecification.id]
+    price float
     createdAt datetime // Represents production date
     updatedAt datetime
     deletedAt datetime
