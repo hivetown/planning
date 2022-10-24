@@ -1,14 +1,28 @@
+// Render this on https://dbdiagram.io
+
+// TODO MAJOR
+// - Notifications
+
 // Users
 Table User {
     id int [pk, increment]
     name varchar
     email varchar
+    phone int
     vat varchar
+    type UserType
     createdAt datetime
     updatedAt datetime
     deletedAt datetime
 }
 
+Enum UserType {
+    "consumer"
+    "supplier"
+    "admin"
+}
+
+// Join table
 Table UserAddress {
     userId int [not null, ref: > User.id]
     addressId int [not null, ref: > Address.id]
@@ -23,33 +37,18 @@ Table Address {
     street varchar
     number varchar
     zip varchar
-    parish varchar // TODO Should this be a foreign key?
-    county varchar // TODO above
-    district varchar // TODO above
-    city varchar // TODO above
-    country varchar // TODO above
+    parish varchar 
+    county varchar
+    city varchar
+    district varchar
+    country varchar
+    latitude float
+    longitude float
     createdAt datetime
     updatedAt datetime
     deletedAt datetime
 }
 
-Table Consumer {
-    id int [pk, increment]
-    userId int [not null, ref: - User.id]
-    createdAt datetime
-    updatedAt datetime
-    deletedAt datetime
-}
-
-Table Supplier {
-    id int [pk, increment]
-    userId int [not null, ref: - User.id]
-    createdAt datetime
-    updatedAt datetime
-    deletedAt datetime
-}
-
-// TODO productspecification should be the one to set the category field values. Just a relationship with fieldenumvalue?
 // Product
 Table ProductSpecification {
     id int [pk, increment]
@@ -61,7 +60,8 @@ Table ProductSpecification {
     deletedAt datetime
 }
 
-Table ProductSpecCategory {
+// Join table
+Table ProductSpecificationCategory {
     productSpecificationId int [not null, ref: > ProductSpecification.id]
     categoryId int [not null, ref: > Category.id]
 
@@ -79,6 +79,7 @@ Table Category {
     deletedAt datetime
 }
 
+// Join table
 Table CategoryField {
     categoryId int [not null, ref: > Category.id]
     fieldId int [not null, ref: > Field.id]
@@ -98,15 +99,14 @@ Table Field {
 }
 
 Enum FieldType {
-    "Text"
-    "Number"
-    "Date"
-    "Boolean"
-    "Enum" // If enum, then the field has a list of possible values, from FieldEnumValue 
+    "text"
+    "number"
+    "date"
+    "boolean"
+    "enum" // If enum, then the field has a list of possible values, from FieldPossibleValue 
 }
 
-// TODO rename this to something better
-Table FieldEnumValue {
+Table FieldPossibleValue {
     fieldId int [not null, ref: > Field.id]
     value varchar
 
@@ -115,15 +115,27 @@ Table FieldEnumValue {
     }
 }
 
+// The actual ProductSpecification Category Field Value
+Table ProductSpecificationCategoryValue {
+    productSpecificationIdId int [not null, ref: > ProductSpecCategory.productSpecificationId]
+    fieldId int [not null, ref: > Field.id]
+    value varbinary // This is parsed on the backend, depending on the field type
+
+    Indexes {
+        (productSpecificationIdId, fieldId) [unique]
+    }
+}
+
 // TODO Product Discounts?
 
-// A concrete product
+// A concrete Product from a Supplier
 Table Product {
     id int [pk, increment]
-    producerId int [not null, ref: > Supplier.id]
+    producerId int [not null, ref: > User.id]
     productSpecificationId int [not null, ref: > ProductSpecification.id]
     price float
-    createdAt datetime // Represents production date
+    productionDate datetime
+    createdAt datetime
     updatedAt datetime
     deletedAt datetime
 }
@@ -131,7 +143,7 @@ Table Product {
 // Orders
 Table Order {
     id int [pk, increment]
-    consumerId int [not null, ref: > Consumer.id]
+    consumerId int [pk, ref: > User.id]
     totalPaid float [null]
     couponId int [ref: > Coupon.id]
     createdAt datetime
@@ -148,6 +160,14 @@ Table OrderItem {
         (orderId, productId) [unique]
     }
 }
+
+// TODO define rules
+// - per customer
+// - per supplier
+// - per product
+// 
+// TODO suppliers create coupons?
+// -> if so they can only be used in their products
 
 Table Coupon {
     id int [pk, increment]
