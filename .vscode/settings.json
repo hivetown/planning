@@ -1,3 +1,6 @@
 {
-    "markdown-mermaid.darkModeTheme": "forest"
+    "markdown-mermaid.darkModeTheme": "forest",
+    "yaml.schemas": {
+        "openapi:v3": "file:///home/lucks/pgp/diagrams/api.yml"
+    }
 }

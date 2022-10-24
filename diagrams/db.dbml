@@ -117,7 +117,7 @@ Table FieldPossibleValue {
 
 // The actual ProductSpecification Category Field Value
 Table ProductSpecificationCategoryValue {
-    productSpecificationIdId int [not null, ref: > ProductSpecCategory.productSpecificationId]
+    productSpecificationIdId int [not null, ref: > ProductSpecificationCategory.productSpecificationId]
     fieldId int [not null, ref: > Field.id]
     value varbinary // This is parsed on the backend, depending on the field type
 
