@@ -1,10 +1,12 @@
 # Class Diagram
 
 ## Extras
+
 - Preço variante (fazer um gráfico de preços)
 - Coupon
 
-TODOS
+## TODOS
+
 - [ ] Notifications
 - [ ] `Product#image` or `ProductSpecification#image`?
 - [ ] Class Methods
@@ -117,10 +119,11 @@ classDiagram
         +getDeletedAt() Date
     }
 
+    %% TODO payment details
     class Order {
         -int id
         -Consumer consumer
-        -double totalPaid
+        -double totalPrice
         -Coupon coupon
         -Address deliveryAddress
         -List~OrderItem~ items
@@ -130,7 +133,7 @@ classDiagram
         -Date deletedAt
         +getId() int
         +getConsumer() Consumer
-        +getTotalPaid() double
+        +getTotalPrice() double
         +getCoupon() Coupon
         +getDeliveryAddress() Address
         +getCreatedAt() Date
@@ -141,6 +144,7 @@ classDiagram
     class OrderItem {
         -Order order
         -Product product
+        -double price
         -int quantity
         +getOrder() Order
         +getProduct() Product
