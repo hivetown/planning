@@ -54,7 +54,7 @@ Table ProductSpecification {
     id int [pk, increment]
     name varchar
     description varchar
-    basePrice float
+    image varchar
     createdAt datetime
     updatedAt datetime
     deletedAt datetime
@@ -92,6 +92,7 @@ Table CategoryField {
 Table Field {
     id int [pk, increment]
     name varchar
+    unit varchar
     type FieldType
     createdAt datetime
     updatedAt datetime
@@ -116,7 +117,7 @@ Table FieldPossibleValue {
 }
 
 // The actual ProductSpecification Category Field Value
-Table ProductSpecificationCategoryValue {
+Table ProductSpecificationFieldValue {
     productSpecificationIdId int [not null, ref: > ProductSpecificationCategory.productSpecificationId]
     fieldId int [not null, ref: > Field.id]
     value varbinary // This is parsed on the backend, depending on the field type
@@ -133,8 +134,17 @@ Table Product {
     id int [pk, increment]
     producerId int [not null, ref: > User.id]
     productSpecificationId int [not null, ref: > ProductSpecification.id]
-    price float
+    currentPrice float // when updated, flush it to ProductPricing
     productionDate datetime
+    createdAt datetime
+    updatedAt datetime
+    deletedAt datetime
+}
+
+Table ProductPricing {
+    id int [pk, increment]
+    productId int [pk, ref: > Product.id]
+    price float
     createdAt datetime
     updatedAt datetime
     deletedAt datetime
@@ -149,6 +159,26 @@ Table Order {
     createdAt datetime
     updatedAt datetime
     deletedAt datetime
+}
+
+Table DeliveryStatusUpdate {
+    orderId int [pk, ref: > Order.id]
+    statusId int [pk, ref: > DeliveryStatus.id]
+    locationId int [pk, ref: > Address.id] // TODO should this be it's own thing?
+    createdAt datetime
+    updatedAt datetime
+    deletedAt datetime
+}
+
+Table DeliveryStatus {
+    id int [pk, increment]
+    name varchar
+    description varchar
+    // Open
+    // Processing
+    // Delivered
+    // ...
+    // Closed
 }
 
 Table OrderItem {
