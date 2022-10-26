@@ -39,52 +39,37 @@ Table Continent {
 
 Table Country {
     id int [pk, increment]
-    continentId int [pk, ref: > Continent.id]
+    continentId int [ref: > Continent.id]
     name varchar
 }
 
 Table District {
     id int [pk, increment]
-    countryId int [pk, ref: > Country.id]
-    continentId int [pk, ref: > Country.continentId]
+    countryId int [ref: > Country.id]
     name varchar
 }
 
 Table City {
     id int [pk, increment]
-    districtId int [pk, ref: > District.id]
-    countryId int [pk, ref: > District.countryId]
-    continentId int [pk, ref: > District.continentId]
+    districtId int [ref: > District.id]
     name varchar
 }
 
 Table County { // Município
     id int [pk, increment]
-    cityId int [pk, ref: > City.id]
-    districtId int [pk, ref: > City.districtId]
-    countryId int [pk, ref: > City.countryId]
-    continentId int [pk, ref: > City.continentId]
+    cityId int [ref: > City.id]
     name varchar
 }
 
 Table Parish { // Freguesia
     id int [pk, increment]
-    countyId int [pk, ref: > County.id]
-    cityId int [pk, ref: > County.cityId]
-    districtId int [pk, ref: > County.districtId]
-    countryId int [pk, ref: > County.countryId]
-    continentId int [pk, ref: > County.continentId]
+    countyId int [ref: > County.id]
     name varchar
 }
 
 Table Street {
     id int [pk, increment]
-    parishId int [pk, ref: > Parish.id]
-    countyId int [pk, ref: > Parish.id]
-    cityId int [pk, ref: > Parish.id]
-    districtId int [pk, ref: > Parish.id]
-    countryId int [pk, ref: > Parish.id]
-    continentId int [pk, ref: > Parish.id]
+    parishId int [ref: > Parish.id]
     street varchar
     zipCode varchar
     latitude double // https://enlear.academy/working-with-geo-coordinates-in-mysql-5451e54cddec
@@ -93,15 +78,10 @@ Table Street {
 
 Table Address {
     id int [pk, increment]
-    streetId int [pk, ref: > Street.id]
-    parishId int [pk, ref: > Street.parishId]
-    countyId int [pk, ref: > Street.countyId]
-    cityId int [pk, ref: > Street.cityId]
-    districtId int [pk, ref: > Street.districtId]
-    countryId int [pk, ref: > Street.countryId]
-    continentId int [pk, ref: > Street.continentId]
+    streetId int [ref: > Street.id]
     number int
-    zip varchar
+    floor int
+    door varchar
 }
 
 // Product
