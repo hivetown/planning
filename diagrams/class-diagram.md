@@ -4,10 +4,13 @@
 
 - Preço variante (fazer um gráfico de preços)
 - Coupon
+- Cenas do delivery(?)
 
 ## TODOS
 
 - [ ] Notifications
+- [ ] Payments
+- [ ] Credentials
 - [ ] `Product#image` or `ProductSpecification#image`?
 - [ ] Class Methods
 - [ ] Delivery
@@ -119,7 +122,6 @@ classDiagram
         +getDeletedAt() Date
     }
 
-    %% TODO payment details
     class Order {
         -int id
         -Consumer consumer
