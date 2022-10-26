@@ -23,7 +23,14 @@
 classDiagram
     %% TB is also readable
     direction LR
+    Continent "1" -- "*" Country
+    Country "1" -- "*" District
+    District "1" -- "*" City
+    City "1" -- "*" County
+    County "1" -- "*" Parish
+    Parish "1" -- "*" Street
     Order "*" -- "1" Coupon
+    Street "1" -- "*" Address
     DeliveryStatus "1" -- "*" DeliveryStatusUpdate
     Address "1" -- "*" DeliveryStatusUpdate
     DeliveryStatusUpdate "*" -- "1" Order
@@ -85,41 +92,96 @@ classDiagram
         + PRODUCER
     }
 
-    class Address {
+    class Continent {
         -int id
-        -int number
+        -String name
+        +getName() String
+        +setName(String name)
+    }
+
+    class Country {
+        -int id
+        -Continent continent
+        -String name
+        +getContinent() Continent
+        +setContinent(Continent continent)
+        +getName() String
+        +setName(String name)
+    }
+
+    class District {
+        -int id
+        -Country country
+        -String name
+        +getCountry() Country
+        +setCountry(Country country)
+        +getName() String
+        +setName(String name)
+    }
+
+    class City {
+        -int id
+        -District district
+        -String name
+        +getDistrict() District
+        +setDistrict(District district)
+        +getName() String
+        +setName(String name)
+    }
+
+    class County {
+        -int id
+        -City city
+        -String name
+        +getCity() City
+        +setCity(City city)
+        +getName() String
+        +setName(String name)
+    }
+
+    class Parish {
+        -int id
+        -County county
+        -String name
+        +getCounty() County
+        +setCounty(County county)
+        +getName() String
+        +setName(String name)
+    }
+
+    class Street {
+        -int id
+        -Parish parish
         -String street
         -String zipCode
-        -String city
-        -String county
-        -String district
-        -String country
         -double latitude
         -double longitude
-        -Date createdAt
-        -Date updatedAt
-        -Date deletedAt
-        +getNumber() int
-        +setNumber(int number)
+        +getParish() Parish
+        +setParish(Parish parish)
         +getStreet() String
         +setStreet(String street)
         +getZipCode() String
         +setZipCode(String zipCode)
-        +getCity() String
-        +setCity(String city)
-        +getCounty() String
-        +setCounty(String county)
-        +getDistrict() String
-        +setDistrict(String district)
-        +getCountry() String
-        +setCountry(String country)
         +getLatitude() double
         +setLatitude(double latitude)
         +getLongitude() double
         +setLongitude(double longitude)
-        +getCreatedAt() Date
-        +getUpdatedAt() Date
-        +getDeletedAt() Date
+    }
+
+    class Address {
+        -int id
+        -Street street
+        -int number
+        -int floor
+        -String door
+        +getStreet() Street
+        +setStreet(Street street)
+        +getNumber() int
+        +setNumber(int number)
+        +getFloor() int
+        +setFloor(int floor)
+        +getDoor() String
+        +setDoor(String door)
     }
 
     class Order {
