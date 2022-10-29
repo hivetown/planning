@@ -11,8 +11,11 @@
 - [ ] Notifications
 - [ ] Payments
 - [ ] Credentials
+- [ ] Cart
 - [ ] `Product#image` or `ProductSpecification#image`?
 - [ ] Class Methods
+- [ ] Order
+  - [ ] prazo de cancelamento
 - [ ] Delivery
   > RF-21: Criação, edição, e remoção de veículo de transporte de produtos.
   - [ ] Cada fornecedor entrega a sua parte da `Order` (os seus `OrderItem`)
