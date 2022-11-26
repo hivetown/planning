@@ -1,8 +1,11 @@
 # TODO
 #  components (schemas) that are missing
+#  fill with examples
 #  show created and updated dates?
 #  allow carrier to create a new shipment
 #  shipment details
+#  figure out if we'll use PUT or PATCH for updating resources
+#  /products should be Product or ProductSpec? Shouldn't be both because that's confusing
 openapi: '3.0.2'
 info:
   title: OLANOME REST API
@@ -19,274 +22,85 @@ servers:
   - url: https://api.server.test/v1
 paths:
   # TODO should /products return ProductSpec[]?
-  # TODO oauth
+  /auth/login:
+    post:
+      summary: Authenticate a user
+      description: Exchange credentials for a JWT token to be used in subsequent requests
+      operationId: login
+      tags:
+        - auth
+      requestBody:
+        description: Credentials to be used to authenticate the user
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthCredentials'
+      responses:
+        '200':
+          description: Credentials exchange successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Authentication failed. Invalid credentials or user not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /products:
     get:
       summary: Get all products
       description: Get all products
-      operationId: getProductss
+      operationId: getProducts
       tags:
         - products
       parameters:
-        - name: page
-          in: query
-          description: Page number
-          required: false
-          schema:
-            type: integer
-            format: int32
-        - name: limit
-          in: query
-          description: Number of items per page
-          required: false
-          schema:
-            type: integer
-            format: int32
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/pageSize'
+        - $ref: '#/components/parameters/sort'
+        # TODO filters? or should be a separate endpoint?
       responses:
         '200':
-          description: OK
+          description: The list of products
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/Product'
-        '400':
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '404':
-          description: Not Found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal Server Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+                  $ref: '#/components/schemas/GetProductsResponse'
     post:
-      # TODO check how to auth
-      summary: Create a product
-      description: Create a product
-      operationId: createProduct
+      security:
+        - bearerAuth: []
+      # TODO who has permissions to create a product?
+      summary: Create a product specification
+      description: Create a product specification.
+      operationId: createProductSpec
       tags:
         - products
       requestBody:
-        description: Product object that needs to be added
+        description: The products specifications that wants to be created
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Product'
+              $ref: '#/components/schemas/CreateProductsSpecRequest'
       responses:
         '201':
-          description: Created
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Product'
-        '400':
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-  /products/{productId}:
-    get:
-      summary: Get a product
-      description: Get a product
-      operationId: getProduct
-      tags:
-        - products
-      parameters:
-        - name: productId
-          in: path
-          description: Product ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Product'
-        '400':
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '404':
-          description: Not Found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal Server Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-    put:
-      summary: Update a product
-      description: Update a product
-      operationId: updateProduct
-      tags:
-        - products
-      parameters:
-        - name: productId
-          in: path
-          description: Product ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-      requestBody:
-        description: Product object that needs to be updated
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Product'
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Product'
-        '400':
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '404':
-          description: Not Found
-    delete:
-      summary: Delete a product
-      description: Delete a product
-      operationId: deleteProduct
-      tags:
-        - products
-      parameters:
-        - name: productId
-          in: path
-          description: Product ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-      responses:
-        '204':
-          description: No Content
-        '400':
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '404':
-          description: Not Found
-        '500':
-          description: Internal Server Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-  /products/{productId}/categories:
-    get:
-      summary: Get categories of a product
-      description: Get categories of a product
-      operationId: getProductCategories
-      tags:
-        - products
-      parameters:
-        - name: productId
-          in: path
-          description: Product ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-      responses:
-        '200':
-          description: OK
+          description: Products specification created. Returns the created products specifications
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/Category'
+                  $ref: '#/components/schemas/CreateProductsSpecResponse'
         '400':
           description: Bad Request
           content:
@@ -294,118 +108,166 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
         '401':
-          description: Unauthorized
+          description: Unauthorized. The user is not authenticated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
-          description: Forbidden
+          description: Forbidden. The user does not have permission to create products
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-        '404':
-          description: Not Found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal Server Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-  /products/{productId}/categories/{categoryId}:
+  /products/{productSpecId}:
+    parameters:
+      - $ref: '#/components/parameters/productSpecId'
     get:
-      summary: Get a category of a product
-      description: Get a category of a product
-      operationId: getProductCategory
+      summary: Get a single product specification
+      description: Get a single product specification
+      operationId: getProductSpec
       tags:
         - products
-      parameters:
-        - name: productId
-          in: path
-          description: Product ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: categoryId
-          in: path
-          description: Category ID
-          required: true
-          schema:
-            type: integer
-            format: int64
       responses:
         '200':
-          description: OK
+          description: The product specification
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Category'
-        '400':
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ProductSpec'
         '404':
-          description: Not Found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal Server Error
+          description: Product specification not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
     put:
-      summary: Add a category to a product
-      description: Add a category to a product
-      operationId: addProductCategory
+      summary: Update a product specification
+      description: Update a product specification. Only the fields that are present in the request body will be updated.
+      operationId: updateProductSpec
       tags:
         - products
-      parameters:
-        - name: productId
-          in: path
-          description: Product ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: categoryId
-          in: path
-          description: Category ID
-          required: true
-          schema:
-            type: integer
-            format: int64
+      requestBody:
+        description: Product specification object that needs to be updated
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductSpec'
+      responses:
+        '200':
+          description: The updated product specification
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductSpec'
+        '204':
+          description: The product was not updated
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized. The user is not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden. The user does not have permission to update product specifications
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Product specification not found
+    delete:
+      summary: Delete a product specification
+      description: Delete a product specification
+      operationId: deleteProductSpec
+      tags:
+        - products
+      responses:
+        '204':
+          description: Product specification deleted
+        '401':
+          description: Unauthorized. The user is not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden. The user does not have permission to delete product specifications
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Product specification not found
+  /products/{productSpecId}/categories:
+    parameters:
+      - $ref: '#/components/parameters/productSpecId'
+    get:
+      summary: Get categories of a product specification
+      description: Get categories of a product specification
+      operationId: getProductSpecCategories
+      tags:
+        - products
+      responses:
+        '200':
+          description: The product specification's categories
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetProductSpecCategoriesResponse'
+        '404':
+          description: Product specification not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /products/{productSpecId}/categories/{categoryId}:
+    parameters:
+      - $ref: '#/components/parameters/productSpecId'
+      - $ref: '#/components/parameters/categoryId'
+    get:
+      summary: Get a category of a product specification
+      description: Get a category of a product specification
+      operationId: getProductSpecCategory
+      tags:
+        - products
+      responses:
+        '200':
+          description: The product specification's category
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+        '404':
+          description: Product specification or category not found
+          # TODO would be nice to have an enum that lists all possible errors
+          #  so that the client can know if it's either spec or category that's not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      summary: Add a category to a product specification
+      description: Add a category to a product specification
+      operationId: addProductSpecCategory
+      tags:
+        - products
       responses:
         '201':
-          description: The category was added to the product
+          description: The category added to the product specification
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Category'
         '204':
-          description: The category was added already on the product
+          description: The category was already on the product specification
         '400':
           description: Bad Request
           content:
@@ -4124,7 +3986,198 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    productId:
+      name: productId
+      in: path
+      description: The id of a product
+      required: true
+      schema:
+        type: integer
+        format: int64
+        example: 1
+    productSpecId:
+      name: productSpecId
+      in: path
+      description: The id of a product specification
+      required: true
+      schema:
+        type: integer
+        format: int64
+        example: 1
+    categoryId:
+      name: categoryId
+      in: path
+      description: The id of a category
+      required: true
+      schema:
+        type: integer
+        format: int64
+        example: 1
+    page:
+      name: page
+      in: query
+      description: Page number
+      required: false
+      schema:
+        type: integer
+        format: int32
+        example: 1
+        minimum: 1
+        maximum: 100 # TODO should we limit to 100 pages so we don't have our whole collection scraped?
+    pageSize:
+      name: pageSize
+      in: query
+      description: Page size
+      required: false
+      schema:
+        type: integer
+        format: int32
+        example: 50
+        minimum: 1
+        maximum: 100
+    sort:
+      name: sort
+      in: query
+      description: 'Sort order. Multiple sort criteria can be passed. Example: sort=firstName:asc,lastName:desc'
+      required: false
+      schema:
+        type: string
+        example: name:asc
   schemas:
+    # Base schemas
+    BaseItemsRequest:
+      type: object
+      properties:
+        items:
+          description: List of items. Must be overriden in the extended schema.
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            type: object
+    BasePaginatedResponse:
+      description: The base paginated response. All paginated responses should extend this and override the items property.
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+        page:
+          type: integer
+          format: int32
+          example: 1
+        pageSize:
+          type: integer
+          format: int32
+          example: 100
+        totalResults:
+          type: integer
+          format: int32
+          example: 5
+      required:
+        - items
+        - page
+        - pageSize
+        - totalResults
+    # Authentication
+    AuthCredentials:
+      type: object
+      properties:
+        credentials:
+          type: object
+          discriminator:
+            propertyName: authType
+            mapping:
+              email: '#/components/schemas/EmailAuthCredentials'
+              # TODO make sure about this
+              google: '#/components/schemas/SocialAuthCredentials'
+              facebook: '#/components/schemas/SocialAuthCredentials'
+              twitter: '#/components/schemas/SocialAuthCredentials'
+          oneOf:
+            - $ref: '#/components/schemas/EmailAuthCredentials'
+            - $ref: '#/components/schemas/SocialAuthCredentials'
+    EmailAuthCredentials:
+      type: object
+      properties:
+        authType:
+          type: string
+          enum:
+            - email
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+      required:
+        - email
+        - password
+    SocialAuthCredentials:
+      type: object
+      properties:
+        authType:
+          type: string
+          enum:
+            - google
+            - facebook
+            - twitter
+        accessToken:
+          type: string
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          format: JWT
+          # TODO example
+    # Requests
+    CreateProductsSpecRequest:
+      allOf:
+        - $ref: '#/components/schemas/BaseItemsRequest'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/ProductSpec'
+    # Responses
+    GetProductsResponse:
+      description: The response for the get products endpoint
+      allOf:
+        - $ref: '#/components/schemas/BasePaginatedResponse'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/Product'
+    CreateProductsSpecResponse:
+      description: The response for the create products specification endpoint
+      allOf:
+        - $ref: '#/components/schemas/BasePaginatedResponse'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/ProductSpec'
+    GetProductSpecCategoriesResponse:
+      description: The response for the get product specification categories endpoint
+      allOf:
+        - $ref: '#/components/schemas/BasePaginatedResponse'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/ProductSpecCategory'
     Error:
       type: object
       properties:
@@ -4293,7 +4346,7 @@ components:
           type: integer
           format: int64
           example: 2
-        productSpecificationId: 
+        productSpecId: 
           type: integer
           format: int64
           example: 3
@@ -4316,10 +4369,10 @@ components:
         producer?:
           type: object
           $ref: '#/components/schemas/User'
-        productSpecification?:
+        productSpec?:
           type: object
-          $ref: '#/components/schemas/ProductSpecification'
-    ProductSpecification:
+          $ref: '#/components/schemas/ProductSpec'
+    ProductSpec:
       type: object
       properties:
         id: 
@@ -4348,10 +4401,10 @@ components:
           type: string
           format: date-time
           example: 2019-10-10T10:10:10.000Z
-    ProductSpecificationCategory:
+    ProductSpecCategory:
       type: object
       properties:
-        productSpecificationId: 
+        productSpeId: 
           type: integer
           format: int64
           example: 3
@@ -4359,16 +4412,16 @@ components:
           type: integer
           format: int64
           example: 1
-        productSpecification?:
+        productSpec?:
           type: object
-          $ref: '#/components/schemas/ProductSpecification'
+          $ref: '#/components/schemas/ProductSpec'
         category?:
           type: object
           $ref: '#/components/schemas/Category'
-    ProductSpecificationCategoryValue:
+    ProductSpecCategoryValue:
       type: object
       properties:
-        productSpecificationId: 
+        productSpecId: 
           type: integer
           format: int64
           example: 3
@@ -4379,9 +4432,9 @@ components:
         value:
           type: string
           example: Vermelho
-        productSpecification?:
+        productSpec?:
           type: object
-          $ref: '#/components/schemas/ProductSpecification'
+          $ref: '#/components/schemas/ProductSpec'
         field?:
           type: object
           $ref: '#/components/schemas/Field'
