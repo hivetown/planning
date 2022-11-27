@@ -252,11 +252,188 @@ esta tá chata de definir na API, mas é importante
 
 ## RF-10: Comparação de dois produtos, com as diferenças em destaque
 
+Obter os dois `ProductSpec` e iterar sobre as propriedades (e valores das categorias) de forma a saber quais diferem em valor.
+
+Devemos definir se é possível comparar dois `ProductSpec` de categorias diferentes.
+
+Convém definir se podemos comparar `Product` com `Product`, possibilitando comparar o mesmo `ProductSpec` de fornecedores diferentes, ou se tem de ser `ProductSpec` com `ProductSpec`
+
+1. Com a primeira podemos comparar custos e impacto na comunidade
+    - A especificação da API seria um `GET` a `/producers/{producerId}/products/{product1}/compare/{product2}`.
+1. Com a segunda só queremos saber das diferenças da especificação do produto, que nem inclui o preço
+    - A especificação da API seria um `GET` a `/products/{product1}/compare/{product2}`.
+
+Podemos implementar ambos, mas acho que o primeiro é mais interessante.
+
+```mermaid
+sequenceDiagram
+    actor A as Alice
+    participant PC as ProductCatalog
+    participant P as Product
+
+    A ->> PC: getProduct(1)
+    PC ->> P: get()
+    activate P
+    P -->> PC: product1
+    PC -->> A: product1
+
+    A ->> PC: getProduct(2)
+    PC ->> P: get()
+    activate P
+    P -->> PC: product2
+    PC -->> A: product2
+
+    A ->> P: product1.compare(product2)
+    P -->> A: differences
+
+    deactivate P
+    deactivate P
+```
+
 ## RF-11: Encomenda dos produtos no cesto de compras
+
+A especificação da API seria um `POST` a `/orders` com o *body* a conter o `userId` e o `cartId`.
+
+```mermaid
+sequenceDiagram
+    actor A as Alice
+    participant C as Cart
+    participant OC as OrderCatalog
+    participant O as Order
+    participant OI as OrderItem
+
+    A ->> C: createOrder()
+    C ->> OC: createOrder({userId, cartId})
+    OC ->> O: new({userId, cartId})
+    activate O
+
+    O ->> C: getProducts()
+    C -->> O: product[]
+
+    loop for each product in products
+        O ->> OI: new({productId, quantity})
+        activate OI
+        OI -->> O: orderItem
+        deactivate OI
+
+        O ->> O: addOrderItem(orderItem)
+    end
+
+    O -->> OC: order
+    OC -->> A: order
+    deactivate O
+```
 
 ## RF-12: Pagamento de encomenda recorrendo a um sistema externo
 
+Serviço externo: [**Stripe**](https://stripe.com), usando o [**Stripe Checkout**](https://stripe.com/docs/payments/checkout).
+
+Começamos então por fazer um pedido `POST` ao *endpoint* `/orders/{orderId}/checkout` irá criar um *checkout session* no *Stripe* e redirecionar o utilizador para o preenchimento de dados relativos ao pagamento, do lado do *Stripe*.
+
+Após a introdução dos dados de pagamento, o *Stripe* irá confirmar o sucesso da operação ao submeter um pedido `POST` a `/payments/webhook`, *aka* *webhook*.
+
+```mermaid
+sequenceDiagram
+    actor A as Alice
+    participant O as Order
+    participant PG as PaymentGateway
+    participant S as Stripe
+    participant Su as Supplier
+
+    A ->> O: checkout()
+    O ->> PG: createCheckoutSession()
+    PG ->> S: createCheckoutSession()
+    S -->> PG: checkoutSession
+    PG -->> O: checkoutSession
+    O -->> A: checkoutSession
+
+    Note right of A: Redirect to checkoutSession.url
+    Note right of A: Fill payment details and submit to external service
+
+    S -->> PG: webhook
+    PG ->> O: setPaid()
+    Note right of O: See RF-14 for notification details
+    O -->> A: notifyPaid
+    O -->> Su: notifyNewOrder
+```
+
 ## RF-13: Cancelamento de encomenda, desde que dentro de um dado prazo
+
+A especificação da API seria um `DELETE` a `/orders/{orderId}`.
+
+Importante!!! Falta definir o prazo de cancelamento e outras regras.
+
+Sugeria que o prazo de cancelamento fosse de 24h, mas que o utilizador pudesse cancelar a qualquer momento, desde que o produto ainda não tivesse sido enviado.
+
+Também é possível definir um prazo de cancelamento para cada produto, definido pelo fornecedor, ou fornecedor-wide.
+
+Este requisito será simplificado, i.e., o utilizador apenas pode cancelar encomendas na sua totalidade, não pode cancelar apenas um produto de uma encomenda.
+
+```mermaid
+sequenceDiagram
+    actor A as Alice
+    participant O as Order
+    participant Su as Supplier
+    participant OI as OrderItem
+    participant P as Product
+    participant PG as PaymentGateway
+    participant S as Stripe
+
+    A ->> O: getStatus()
+    O -->> A: status
+    Note left of O: If order shipped then we cannot cancel
+    A ->> O: cancel()
+    
+    Note right of O: Implementation of different cancellation policies
+    alt less than 24h since order
+        O ->> O: cancel()
+        O -->> A: orderCancelled
+    else less than maximum supplier defined time since order
+        Note right of O: Calculate max time to cancel
+        O ->> OI: getProducts()
+        OI -->> O: product[]
+
+        loop for each product
+            O ->> Su: getMaxCancelTime()
+            Su -->> O: cancelTime
+        end
+
+        Note left of O: Whether we can cancel
+        alt less than MAX(cancelTime) since order
+            O ->> O: cancel()
+            O -->> A: orderCancelled
+        else more than MAX(cancelTime) since order
+            O -->> A: orderCannotBeCancelled
+        end
+    else less than all of products return policy
+        Note right of O: Calculate max time to cancel
+        O ->> OI: getProducts()
+        OI -->> O: product[]
+
+        loop for each product
+            O ->> P: getMaxCancelTime()
+            P -->> O: cancelTime
+        end
+
+        Note left of O: Whether we can cancel
+        alt less than MAX(cancelTime) since order
+            O ->> O: cancel()
+            O -->> A: orderCancelled
+        else more than MAX(cancelTime) since order
+            O -->> A: orderCannotBeCancelled
+        end
+    end
+    
+    Note right of O: If order paid then refund
+    alt Order paid
+        O ->> PG: refund(id)
+        PG ->> S: refund(id)
+        Note right of S: Stripe will notify us through webhook
+        S -->> PG: refund
+        PG -->> O: refund
+        O -->> A: notifyUserRefund
+    end
+```
 
 ## RF-14: Notificação sobre a saída de produtos encomendados de um fornecedor
 
