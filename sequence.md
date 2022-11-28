@@ -437,9 +437,76 @@ sequenceDiagram
 
 ## RF-14: Notificação sobre a saída de produtos encomendados de um fornecedor
 
+**Interpretação**: Notificação a cada `ShipmentEvent` em vez de apenas uma notificação aquando da saída dos produtos de uma `Order`.
+
+Desta forma, não "existe" um *endpoint* para notificar o utilizador sobre a saída de produtos de uma encomenda, mas sim, um evento despoletado. Utilização do padrão ***Observer***?
+
+Primeiramente, necessitamos de persistir as notificações, podendo assim ser vistas novamente posteriormente, e não perdidas (*ephemeral*).
+
+Após isso, devemos notificar as partes interessadas, os *subscribers*. Após persistir a notificação, podemos notificar os *subscribers* de forma assíncrona, i.e., em *background*, através de *sockets* (caso o *subscriber* estiver à escuta), e através do *e-mail*.
+
+Notas de implementação: Uso do padrão ***Strategy*** Criar uma interface `NotificationStrategy` e implementar `SocketNotificationStrategy` assim como `EmailNotificationStrategy` que, através dos `SocketGateway` e `EmailGateway`, respetivamente, notificam os *subscribers*.
+
+```mermaid
+sequenceDiagram
+    actor S as System
+    participant SE as ShipmentEvent
+    participant N as Notification
+    participant U as User
+    participant NMF as NotificationMessageFactory
+    # TODO these socket and email gateways may implement the same interface and be considered different Notification Strategies
+    participant SG as SocketGateway
+    participant EG as EmailGateway
+
+    Note right of S: A System component makes a ShipmentEvent
+    S ->> SE: new({orderId, status, address, etc})
+    activate SE
+
+    SE ->> SE: persist()
+
+    SE ->> N: new(shippingEvent, subscriber)
+    activate N
+    N ->> N: persist()
+
+    SE -->> S: shipmentEvent
+    deactivate SE
+
+    Note right of N: Who should receive the event notification
+
+    loop for each notification.subscribers
+        Note right of N: Push notification
+        N ->> SG: findSocket(subscriber)
+        alt Socket found
+            SG -->> N: socket
+            N ->> NMF: makeSocketNotificationMessage(shipmentEvent) # entity, type, emitter, etc
+            NMF -->> N: message
+            N ->> SG: send(socket, message)
+            SG -->> N: notificationSent
+        end
+
+        # TODO we will allow disabling types of notifications sent through email, so we must check we can send this type of notification
+        N ->> U: getNotificationPreferences()
+        U -->> N: notificationPreferences
+
+        Note right of N: Email notification
+        alt canSendEmail(notificationPreferences, shipmentEvent)
+            N ->> U: getEmail()
+            U -->> N: email
+            N ->> NMF: makeEmailNotificationMessage(shipmentEvent)
+            NMF -->> N: message
+            N ->> EG: send(email, message)
+            EG -->> N: notificationSent
+        end
+    end
+
+    deactivate N
+```
+
 ## RF-15: Notificação sobre a chegada iminente de encomenda
 
-## RF-16: Visualização de relatório do impacto local3 das suas encomenda
+Notar o diagrama de sequência acima. Visto que o `ShipmentEvent` é um evento que ocorre quando a encomenda tem uma atualização no envio, podemos utilizar o mesmo evento para notificar o utilizador sobre a chegada iminente da encomenda.
+
+## RF-16: Visualização de relatório do impacto local das suas encomenda
 
 ## RF-17: Exportação dos dados das encomendas para ficheiros JSON
 
