@@ -435,6 +435,8 @@ sequenceDiagram
     end
 ```
 
+<div id="rf-14"></div>
+
 ## RF-14: Notificação sobre a saída de produtos encomendados de um fornecedor
 
 **Interpretação**: Notificação a cada `ShipmentEvent` em vez de apenas uma notificação aquando da saída dos produtos de uma `Order`.
@@ -504,7 +506,7 @@ sequenceDiagram
 
 ## RF-15: Notificação sobre a chegada iminente de encomenda
 
-Notar o diagrama de sequência acima. Visto que o `ShipmentEvent` é um evento que ocorre quando a encomenda tem uma atualização no envio, podemos utilizar o mesmo evento para notificar o utilizador sobre a chegada iminente da encomenda.
+Notar o diagrama de sequência [acima](#rf-14). Visto que o `ShipmentEvent` é um evento que ocorre quando a encomenda tem uma atualização no envio, podemos utilizar o mesmo evento para notificar o utilizador sobre a chegada iminente da encomenda.
 
 ## RF-16: Visualização de relatório do impacto local das suas encomenda
 
@@ -519,6 +521,12 @@ Notar o diagrama de sequência acima. Visto que o `ShipmentEvent` é um evento q
 ## RF-21: Criação, edição, e remoção de veículo de transporte de produtos
 
 ## RF-22: Notificação sobre encomenda de consumidor
+
+Podemos usar o mesmo evento `ShipmentEvent` para notificar o utilizador sobre a criação de uma encomenda.
+
+Assim, iriamos ter um `ShipmentEvent` criado, cujo `ShipmentStatus` seria encomenda `criada`, porém `pending` seria mais rigoroso.
+
+> Notar o diagrama de sequência [acima](#rf-14). Visto que o `ShipmentEvent` é um evento que ocorre quando a encomenda tem uma atualização no envio, podemos utilizar o mesmo evento para notificar o utilizador sobre a chegada iminente da encomenda.
 
 ## RF-23: Visualização de encomenda de consumidor
 
