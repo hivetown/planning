@@ -169,7 +169,7 @@ sequenceDiagram
     UC -->> A: user
     A ->> F: authenticate()
     F -->> A: fbToken
-    Note left of Au: This is weird because login would require a user to already exist
+    Note left of Au: This is weird because login would require a user to already exist and be related to the credentials
     A ->> Au: login(fbToken)
     Note left of Au: We may be able to verify locally, skipping this step
     alt verify token
@@ -202,6 +202,7 @@ sequenceDiagram
         Au ->> F: verifyToken(fbToken)
         F -->> Au: fbToken
     end
+    # TODO check if user is disabled
     Au -->> A: accessToken    
 ```
 
@@ -245,10 +246,54 @@ sequenceDiagram
 
 ## RF-08: Pesquisa de produtos através dos campos específicos das categorias
 
-<!-- TODO -->
-esta tá chata de definir na API, mas é importante
+Usando o mesmo *endpoint* `/products/search?q=` do [rf-03](#rf-03-pesquisa-de-produtos-através-dos-campos-comuns-a-todos-os-produtos) mas adicionando os campos específicos das categorias.
+
+Exemplo:
+
+```md
+filter[address][city]=London&
+filter[address][street]=12+High+Street&
+filter[location][]=10&
+filter[location][]=20&
+filter[name]=David&
+filter[nationality]=Danish
+```
+
+irá construir o seguinte filtro:
+
+```json
+filter: {
+  "name": "David",
+  "nationality": "Danish",
+  "address": {
+    "street": "12 High Street",
+    "city": "London",
+  },
+  "location": [10, 20],
+}
+```
+
+```mermaid
+sequenceDiagram
+    actor A as Alice
+    participant PC as ProductCatalog
+
+    A ->> PC: search({q, filter})
+    PC -->> A: products
+```
 
 ## RF-09: Visualização do histórico de encomendas e seus detalhes
+
+Para obter o histórico de encomendas do utilizador podemos usar o *endpoint* `/consumers/@me/orders` com o método `GET`.
+
+```mermaid
+sequenceDiagram
+    actor A as Alice
+    participant OC as OrderCatalog
+
+    A ->> OC: getOrders(@me)
+    OC -->> A: order[]
+```
 
 ## RF-10: Comparação de dois produtos, com as diferenças em destaque
 
@@ -435,8 +480,6 @@ sequenceDiagram
     end
 ```
 
-<div id="rf-14"></div>
-
 ## RF-14: Notificação sobre a saída de produtos encomendados de um fornecedor
 
 **Interpretação**: Notificação a cada `ShipmentEvent` em vez de apenas uma notificação aquando da saída dos produtos de uma `Order`.
@@ -506,19 +549,349 @@ sequenceDiagram
 
 ## RF-15: Notificação sobre a chegada iminente de encomenda
 
-Notar o diagrama de sequência [acima](#rf-14). Visto que o `ShipmentEvent` é um evento que ocorre quando a encomenda tem uma atualização no envio, podemos utilizar o mesmo evento para notificar o utilizador sobre a chegada iminente da encomenda.
+Notar o diagrama de sequência [acima](#rf-14-notificação-sobre-a-saída-de-produtos-encomendados-de-um-fornecedor). Visto que o `ShipmentEvent` é um evento que ocorre quando a encomenda tem uma atualização no envio, podemos utilizar o mesmo evento para notificar o utilizador sobre a chegada iminente da encomenda.
 
 ## RF-16: Visualização de relatório do impacto local das suas encomenda
 
+<!-- TODO não faço ideia -->
+
 ## RF-17: Exportação dos dados das encomendas para ficheiros JSON
+
+Um *endpoint* próprio para obter os dados tratados seria o mais eficiente. Depois, apenas seria necessário gravar a resposta num ficheiro (a *API* retorna sempre em *JSON*).
+
+`/consumers/{consumerId}/orders/export`
+
+```mermaid
+sequenceDiagram
+    actor A as Alice
+    participant O as Order
+    participant OI as OrderItem
+    participant P as Product
+    participant Su as Supplier
+    participant PG as PaymentGateway
+    participant S as Stripe
+
+    A ->> O: getOrders()
+
+    loop for each order
+        O ->> OI: getOrderItems()
+        OI -->> O: orderItems[]
+    end
+
+    loop for each orderItem
+        OI ->> P: getProduct()
+        P -->> OI: product
+    end
+
+    loop for each product
+        P ->> Su: getSupplier()
+        Su -->> P: supplier
+    end
+
+    loop for each order
+        O ->> PG: getPayment()
+        PG ->> S: getPayment()
+        S -->> PG: payment
+        PG -->> O: payment
+    end
+
+    O -->> A: order[]
+```
 
 ## RF-18: Criação, gestão, e remoção de unidade de produção
 
+É mais simples separar em três partes: criação, gestão, e remoção.
+
+### Criação
+
+A criação de uma unidade de produção é feita através de um *endpoint* próprio, que recebe os dados necessários para a criação da unidade de produção. Para tal, efetua-se `POST` a `/producers/{producerId}/units`
+
+```mermaid
+sequenceDiagram
+    actor A as Alice
+    participant PC as ProducerCatalog
+    participant P as Producer
+    participant U as Unit
+
+    A ->> PC: findProducer(producerId)
+    PC -->> A: producer
+
+    A ->> P: createUnit({name, description, etc})
+    P ->> U: new({name, description, etc})
+    activate U
+
+    U ->> U: persist()
+
+    U -->> P: unit
+
+    P -->> A: unit
+    deactivate U
+```
+
+### Gestão
+
+A gestão de uma unidade de produção é feita através de um *endpoint* próprio, que recebe os dados necessários para a gestão da unidade de produção. Para tal, efetua-se `PUT` a `/producers/{producerId}/units/{unitId}`
+
+```mermaid
+sequenceDiagram
+    actor A as Alice
+    participant PC as ProducerCatalog
+    participant P as Producer
+    participant UC as UnitCatalog
+    participant U as Unit
+
+    A ->> PC: findProducer(producerId)
+    PC -->> A: producer
+
+    A ->> P: updateUnit(unitId, {name, description, etc})
+
+    P ->> UC: findUnit(unitId)
+    UC -->> P: unit
+
+    P ->> U: update({name, description, etc})
+    U -->> P: updatedUnit
+
+    P -->> A: updatedUnit
+```
+
+### Remoção
+
+A remoção de uma unidade de produção é feita através de um *endpoint* próprio, que recebe os dados necessários para a remoção da unidade de produção. Para tal, efetua-se `DELETE` a `/producers/{producerId}/units/{unitId}`
+
+```mermaid
+sequenceDiagram
+    actor A as Alice
+    participant UC as UnitCatalog
+    participant U as Unit
+
+    A ->> UC: deleteUnit(producerId, unitId)
+    UC ->> U: delete()
+    U -->> UC: deletedUnit
+    UC -->> A: deletedUnit
+```
+
 ## RF-19: Criação, gestão, e remoção de produto, e ligação a unidade de produção
+
+É mais simples separar em quatro partes: criação, gestão, remoção, e ligação a unidade de produção.
+
+### Criação
+
+De forma semelhante ao [RF-18](#rf-18-criação-gestão-e-remoção-de-unidade-de-produção), a criação de um produto é feita através de um *endpoint* próprio, que recebe os dados necessários para a criação do produto. Para tal, efetua-se `POST` a `/producers/{producerId}/products`
+
+```mermaid
+sequenceDiagram
+    actor A as Alice
+    participant PC as ProducerCatalog
+    participant P as Producer
+    participant Pr as Product
+
+    A ->> PC: findProducer(producerId)
+    PC -->> A: producer
+
+    A ->> P: createProduct({name, description, etc})
+    P ->> Pr: new({name, description, etc})
+    activate Pr
+
+    Pr ->> Pr: persist()
+
+    Pr -->> P: product
+
+    P -->> A: product
+    deactivate Pr
+```
+
+### Gestão
+
+De forma semelhante ao [RF-18](#rf-18-criação-gestão-e-remoção-de-unidade-de-produção), a gestão de um produto é feita através de um *endpoint* próprio, que recebe os dados necessários para a gestão do produto. Para tal, efetua-se `PUT` a `/producers/{producerId}/products/{productId}`
+
+```mermaid
+sequenceDiagram
+    actor A as Alice
+    participant PC as ProducerCatalog
+    participant P as Producer
+    participant PrC as ProductCatalog
+    participant Pr as Product
+    participant PrP as ProductPricing
+
+    A ->> PC: findProducer(producerId)
+    PC -->> A: producer
+
+    A ->> P: updateProduct(productId, {name, description, etc})
+
+    P ->> PrC: findProduct(productId)
+    PrC -->> P: product
+
+    P ->> Pr: update({name, description, etc})
+
+    alt price is changed
+        Pr ->> PrP: new({productId, currentPrice})
+        activate PrP
+        PrP ->> PrP: persist()
+        PrP -->> Pr: productPricing
+        deactivate PrP
+
+        Note right of Pr: price = currentPrice
+    end
+
+    Pr -->> P: updatedProduct
+    P -->> A: updatedProduct
+```
+
+### Remoção
+
+De forma semelhante ao [RF-18](#rf-18-criação-gestão-e-remoção-de-unidade-de-produção), a remoção de um produto é feita através de um *endpoint* próprio, que recebe os dados necessários para a remoção do produto. Para tal, efetua-se `DELETE` a `/producers/{producerId}/products/{productId}`
+
+```mermaid
+sequenceDiagram
+    actor A as Alice
+    participant PC as ProducerCatalog
+    participant P as Producer
+    participant UC as UnitCatalog
+    participant U as Unit
+
+    A ->> PC: findProducer(producerId)
+    PC -->> A: producer
+
+    A ->> P: removeProduct(unitId, productId)
+
+    P ->> UC: findUnit(unitId)
+    UC -->> P: unit
+    
+    P ->> U: removeProduct(product)
+    U -->> P: removedProduct
+
+    P -->> A: removedProduct
+```
+
+### Ligação a unidade de produção
+
+Para ligar um produto a uma unidade de produção é necessário que ambos tenham sido criados previamente. Depois, resta apenas adicionar o produto à coleção de produtos da unidade, através de `PUT` a `/producers/{producerId}/units/{unitId}/products/{productId}`
+
+```mermaid
+sequenceDiagram
+    actor A as Alice
+    participant PC as ProducerCatalog
+    participant P as Producer
+    participant UC as UnitCatalog
+    participant PrC as ProductCatalog
+    participant U as Unit
+
+    A ->> PC: findProducer(producerId)
+    PC -->> A: producer
+
+    A ->> P: addProductToUnit(unitId, productId)
+
+    P ->> UC: findUnit(unitId)
+    UC -->> P: unit
+
+    P ->> PrC: findProduct(productId)
+    PrC -->> P: product
+
+    P ->> U: addProduct(product)
+    U -->> P: unit
+
+    P -->> A: unit
+```
 
 ## RF-20: Visualização de unidade de produção e dos seus produtos
 
+Iremos novamente separar em duas partes: visualização de unidade de produção, e visualização dos produtos da unidade de produção.
+
+### Visualização de unidade de produção
+
+Apenas obtém os dados base da unidade de produção, através de `GET` a `/producers/{producerId}/units/{unitId}`
+
+```mermaid
+sequenceDiagram
+    actor A as Alice
+    participant UC as UnitCatalog
+
+    A ->> UC: findUnit(producerId, unitId)
+    UC -->> A: unit
+```
+
+### Visualização dos produtos da unidade de produção
+
+<!-- TODO este endpoint -->
+De forma a obter a coleção de produtos da unidade de produção, efetua-se `GET` a `/producers/{producerId}/units/{unitId}/products`
+
+```mermaid
+sequenceDiagram
+    actor A as Alice
+    participant UC as UnitCatalog
+    participant U as Unit
+
+    A ->> UC: findUnit(producerId, unitId)
+    UC -->> A: unit
+
+    A ->> U: listProducts()
+    U -->> A: products
+```
+
 ## RF-21: Criação, edição, e remoção de veículo de transporte de produtos
+
+Bastante semelhante a [RF-18](#rf-18-criação-gestão-e-remoção-de-unidade-de-produção).
+
+Separando em três partes: criação, gestão, e remoção.
+
+### Criação
+
+De forma semelhante ao [RF-18](#rf-18-criação-gestão-e-remoção-de-unidade-de-produção), a criação de um veículo de transporte de produtos é feita através de um `POST` a `/producers/{producerId}/carriers`
+
+```mermaid
+sequenceDiagram
+    actor A as Alice
+    participant PC as ProducerCatalog
+    participant P as Producer
+    participant C as Carrier
+
+    A ->> PC: findProducer(producerId)
+    PC -->> A: producer
+
+    A ->> P: createCarrier({name, description, etc})
+    P ->> C: new({name, description, etc})
+    activate C
+
+    C ->> C: persist()
+
+    C -->> P: carrier
+
+    P -->> A: carrier
+    deactivate C
+```
+
+### Edição
+
+De forma semelhante ao [RF-18](#rf-18-criação-gestão-e-remoção-de-unidade-de-produção), a edição de um *carrier* faz-se através de um `PUT` a `/producers/{producerId}/carriers/{carrierId}`
+
+```mermaid
+sequenceDiagram
+    actor A as Alice
+    participant CC as CarrierCatalog
+    participant C as Carrier
+
+    A ->> CC: findCarrier(producerId, carrierId)
+    CC -->> A: carrier
+
+    A ->> C: update({name, description, etc})
+    C -->> A: updatedCarrier
+```
+
+### Remoção
+
+De forma semelhante ao [RF-18](#rf-18-criação-gestão-e-remoção-de-unidade-de-produção), a remoção de um *carrier* faz-se através de um `DELETE` a `/producers/{producerId}/carriers/{carrierId}`
+
+```mermaid
+sequenceDiagram
+    actor A as Alice
+    participant PC as ProducerCatalog
+    participant C as Carrier
+
+    A ->> CC: deleteCarrier(producerId, carrierId)
+    CC ->> C: delete()
+    C -->> CC: deletedCarrier
+    CC -->> A: deletedCarrier
+```
 
 ## RF-22: Notificação sobre encomenda de consumidor
 
@@ -526,18 +899,73 @@ Podemos usar o mesmo evento `ShipmentEvent` para notificar o utilizador sobre a 
 
 Assim, iriamos ter um `ShipmentEvent` criado, cujo `ShipmentStatus` seria encomenda `criada`, porém `pending` seria mais rigoroso.
 
-> Notar o diagrama de sequência [acima](#rf-14). Visto que o `ShipmentEvent` é um evento que ocorre quando a encomenda tem uma atualização no envio, podemos utilizar o mesmo evento para notificar o utilizador sobre a chegada iminente da encomenda.
+> Notar o diagrama de sequência [acima](#rf-14-notificação-sobre-a-saída-de-produtos-encomendados-de-um-fornecedor). Visto que o `ShipmentEvent` é um evento que ocorre quando a encomenda tem uma atualização no envio, podemos utilizar o mesmo evento para notificar o utilizador sobre a chegada iminente da encomenda.
 
 ## RF-23: Visualização de encomenda de consumidor
 
+<!-- standard -->
+
+A visualização de uma encomenda de consumidor é feita através de um `GET` a `/consumers/{consumerId}/orders/{orderId}`
+
+```mermaid
+sequenceDiagram
+    actor A as Alice
+    participant API as API
+    participant CG as ConsumerGateway
+    participant OG as OrderGateway
+    participant O as Order
+
+    A ->> API: GET /consumers/{consumerId}/orders/{orderId}
+
+    API ->> CG: get(consumerId)
+    CG -->> API: consumer
+
+    API ->> OG: get(orderId)
+    OG -->> API: order
+    API -->> A: order
+```
+
 ## RF-24: Colocação de produto encomendado em veículo de transporte disponível
+
+TODO
 
 ## RF-25: Registo de saída de veículo de transporte com produtos encomendados
 
+Basicamente o mesmo que o [RF-14](#rf-14-notificação-sobre-a-saída-de-produtos-encomendados-de-um-fornecedor), mas com um `ShipmentStatus` diferente.
+
 ## RF-26: Registo de chegada iminente de encomenda a casa do consumidor
+
+Basicamente o mesmo que o [RF-14](#rf-14-notificação-sobre-a-saída-de-produtos-encomendados-de-um-fornecedor), mas com um `ShipmentStatus` diferente.
 
 ## RF-27: Visualização de relatório do impacto local das vendas dos seus produtos
 
+Não sei
+
 ## RF-28: Desativação e reativação de qualquer conta de utilizador no sistema
 
+De forma semelhante ao [RF-18](#rf-18-criação-gestão-e-remoção-de-unidade-de-produção), a desativação de uma conta de utilizador faz-se através de um `PUT` a `/users/{userId}`, especificando o campo `disabledOn` com a data a partir da qual a conta fica desativada ou `null`, de forma a reativar a conta.
+
+```mermaid
+sequenceDiagram
+    actor A as Alice
+    participant API
+    participant UG as UserGateway
+    participant U as User
+
+    A ->> API: PUT /users/{userId}
+
+    API ->> UG: get(userId)
+    UG -->> API: user
+
+    API ->> U: update({disabledOn: body.disabledOn})
+    U -->> API: disabledUser
+
+    API ->> UG: update(disabledUser)
+    UG -->> API: updatedUser
+
+    API -->> A: updatedUser
+```
+
 ## RF-29: Visualização de relatório do impacto local das vendas de produtos
+
+Não sei
