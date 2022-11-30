@@ -1,28 +1,61 @@
-# Diagramas de Sequência
+# Diagramas de Sequência dos Requisitos Funcionais
+
+## Notas sobre API
+
+### Filtros na QueryString
+
+Exemplo:
+
+```md
+filter[address][city]=London&
+filter[address][street]=12+High+Street&
+filter[location][]=10&
+filter[location][]=20&
+filter[name]=David&
+filter[nationality]=Danish
+```
+
+irá construir o seguinte filtro:
+
+```json
+filter: {
+  "name": "David",
+  "nationality": "Danish",
+  "address": {
+    "street": "12 High Street",
+    "city": "London",
+  },
+  "location": [10, 20],
+}
+```
 
 ## RF-01 - Navegação pelos produtos através da hierarquia de categorias
 
 <!-- TODO isto em árvore? É muito custoso na BD gerar isto? Caching? -->
-Na API temos o endpoint `/categories` para obter as categorias na sua forma hierarquica.
+Na API temos o *endpoint* GET `/categories` para obter as categorias na sua forma hierárquica.
 
 <!-- TODO ter a certeza desta forma, ou se faremos algo tipo /products?categoryId=1,2 -->
-Podemos então selecionar as categorias que queremos visualizar e filtrar os produtos pelos IDs dessas categorias no endpoint `/products?categoryId=1&categoryId=2`
+A partir desse temos conhecimento dos *IDs* aos quais nos iremos referir no filtro.
+
+O *endpoint* a usar para listar os `ProductSpec` é `/products`
+
+Exemplo: `/products?filter[categoryId][]=1&filter[categoryId][]=2`
 
 ```mermaid
 sequenceDiagram
     actor A as Alice
-    participant CC as CategoryCatalog
-    participant PC as ProductCatalog
+    participant CG as CategoryGateway
+    participant PG as ProductGateway
 
-    A ->> CC : listCategories()
-    CC -->> A: category[]
-    A ->> PC: listProducts(category1, category2)
-    PC -->> A: products[]
+    A ->> CG : getTree()
+    CG -->> A: category[]
+    A ->> PG: findCategoryProducts(category1, category2)
+    PG -->> A: products[]
 ```
 
 ## RF-02: Visualização de produtos e seus fornecedores
 
-Através do endpoint `/products` podemos obter os produtos, que terão no seu interior o fornecedor.
+Através do *endpoint* GET `/products` podemos obter os `ProductSpec`, que terão no seu interior o fornecedor.
 
 <!-- TODO este endpoint -->
 Contudo, para obter todos os fornecedores de um `ProductSpec` podemos usar o endpoint `/products/{id}/suppliers` que nos devolve todos os fornecedores que fornecem esse produto.
@@ -247,31 +280,6 @@ sequenceDiagram
 ## RF-08: Pesquisa de produtos através dos campos específicos das categorias
 
 Usando o mesmo *endpoint* `/products/search?q=` do [rf-03](#rf-03-pesquisa-de-produtos-através-dos-campos-comuns-a-todos-os-produtos) mas adicionando os campos específicos das categorias.
-
-Exemplo:
-
-```md
-filter[address][city]=London&
-filter[address][street]=12+High+Street&
-filter[location][]=10&
-filter[location][]=20&
-filter[name]=David&
-filter[nationality]=Danish
-```
-
-irá construir o seguinte filtro:
-
-```json
-filter: {
-  "name": "David",
-  "nationality": "Danish",
-  "address": {
-    "street": "12 High Street",
-    "city": "London",
-  },
-  "location": [10, 20],
-}
-```
 
 ```mermaid
 sequenceDiagram
