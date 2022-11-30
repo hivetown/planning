@@ -191,15 +191,24 @@ Iremos apenas contemplar a criação de um `Consumidor`, mas o processo é idên
 sequenceDiagram
     actor A as Alice
     participant API
+    participant C as Consumer
     participant CG as ConsumerGateway
     participant F as Firebase
     participant Au as AuthService
     participant CredG as CredentialGateway
     participant EAu as ExternalAuthGateway
+    participant Cred as Credential
 
     A ->> API: POST /consumers
-    API ->> CG: new({name, email, ...})
-    CG -->> API: temporaryToken
+
+    API ->> C: new({name, email, ...})
+    C -->> API: consumer
+
+    API ->> CG: create(consumer)
+    CG -->> API: consumer
+
+    API ->> Au: addAuth(consumer, "temporary")
+    Au -->> API: temporaryToken
     API -->> A: temporaryToken
 
     A ->> F: authenticate(email, password)
@@ -222,7 +231,9 @@ sequenceDiagram
         EAu -->> Au: extToken
     end
 
-    Au ->> CredG: new({authType: "password", token})
+    Au ->> Cred: new({authType: "password", token})
+    Cred -->> Au: credential
+    Au ->> CredG: create(credential)
     CredG -->> Au: credential
     Au -->> API: credential
     API -->> A: credential
@@ -418,7 +429,7 @@ sequenceDiagram
     CaG -->> API: cart
 
     API ->> OF: createFromCart(cart)
-    OF ->> O: new Order()
+    OF ->> O: new()
 
     OF ->> C: getProducts()
     C ->> PPG: findFromCart(cart)
@@ -557,30 +568,43 @@ Notas de implementação: Uso do padrão ***Strategy*** Criar uma interface `Not
 ```mermaid
 sequenceDiagram
     actor S as System
+    participant SEF as ShipmentEventFactory
     participant SE as ShipmentEvent
+    participant SEG as ShipmentEventGateway
+    participant NF as NotificationFactory
     participant N as Notification
+    participant NFG as NotificationGateway
     participant U as User
     participant NMF as NotificationMessageFactory
-    # TODO these socket and email gateways may implement the same interface and be considered different Notification Strategies
+    # SocketGateway is NOT a data table gateway. It is a facade to the socket server
     participant SG as SocketGateway
     participant EG as EmailGateway
 
     Note right of S: A System component makes a ShipmentEvent
-    S ->> SE: new({orderId, status, address, etc})
+    S ->> SEF: create()
+    SEF ->> SE: new({orderId, status, address, etc})
     activate SE
+    SE -->> SEF: shipmentEvent
 
-    SE ->> SE: persist()
-
-    SE ->> N: new(shippingEvent, subscriber)
-    activate N
-    N ->> N: persist()
-
-    SE -->> S: shipmentEvent
+    SEF ->> SEG: create(shipmentEvent)
+    SEG -->> SEF: savedShipmentEvent
+    SEF -->> S: savedShipmentEvent
     deactivate SE
 
-    Note right of N: Who should receive the event notification
+    # TODO confirmar que notificações são criadas doutras formas
+    SEF ->> NF: createShipmentNotification(shippingEvent, subscriber)
 
-    loop for each notification.subscribers
+    NF ->> N: new({shipmentEvent, subscriber})
+
+    activate N
+    N -->> NF: notification
+    
+    NF ->> NFG: create(notification)
+    NFG -->> NF: savedNotification
+    
+    Note right of N: Deliver notifications
+
+    loop for each subscriber in notification.subscribers
         Note right of N: Push notification
         N ->> SG: findSocket(subscriber)
         alt Socket found
@@ -615,6 +639,7 @@ Notar o diagrama de sequência [acima](#rf-14-notificação-sobre-a-saída-de-pr
 
 ## RF-16: Visualização de relatório do impacto local das suas encomenda
 
+Não sei
 <!-- TODO não faço ideia -->
 
 ## RF-17: Exportação dos dados das encomendas para ficheiros JSON
@@ -626,38 +651,16 @@ Um *endpoint* próprio para obter os dados tratados seria o mais eficiente. Depo
 ```mermaid
 sequenceDiagram
     actor A as Alice
-    participant O as Order
-    participant OI as OrderItem
-    participant P as Product
-    participant Su as Supplier
-    participant PG as PaymentGateway
-    participant S as Stripe
+    participant API as API
+    participant OG as OrderGateway
 
-    A ->> O: getOrders()
+    A ->> API: GET /consumers/{consumerId}/orders/export
 
-    loop for each order
-        O ->> OI: getOrderItems()
-        OI -->> O: orderItems[]
-    end
+    Note right of API: We fetch the orders, loading the order items and the products, the Producer, and payment details
+    API ->> OG: findOrderByConsumer(consumerId)
+    OG -->> API: order[]
 
-    loop for each orderItem
-        OI ->> P: getProduct()
-        P -->> OI: product
-    end
-
-    loop for each product
-        P ->> Su: getSupplier()
-        Su -->> P: supplier
-    end
-
-    loop for each order
-        O ->> PG: getPayment()
-        PG ->> S: getPayment()
-        S -->> PG: payment
-        PG -->> O: payment
-    end
-
-    O -->> A: order[]
+    API -->> A: order[]
 ```
 
 ## RF-18: Criação, gestão, e remoção de unidade de produção
@@ -671,23 +674,25 @@ A criação de uma unidade de produção é feita através de um *endpoint* pró
 ```mermaid
 sequenceDiagram
     actor A as Alice
-    participant PC as ProducerCatalog
-    participant P as Producer
+    participant API as API
+    participant UF as UnitFactory
     participant U as Unit
+    participant UG as UnitGateway
 
-    A ->> PC: findProducer(producerId)
-    PC -->> A: producer
+    A ->> API: POST /producers/{producerId}/units
 
-    A ->> P: createUnit({name, description, etc})
-    P ->> U: new({name, description, etc})
+    API ->> UF: create(producer, {name, description, etc})
+
+    UF ->> U: new(producer, {name, description, etc})
     activate U
+    U -->> UF: unit
 
-    U ->> U: persist()
-
-    U -->> P: unit
-
-    P -->> A: unit
+    UF ->> UG: create(unit)
+    UG -->> UF: savedUnit
     deactivate U
+
+    UF -->> API: savedUnit
+    API -->> A: savedUnit
 ```
 
 ### Gestão
