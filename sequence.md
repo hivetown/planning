@@ -44,175 +44,188 @@ Exemplo: `/products?filter[categoryId][]=1&filter[categoryId][]=2`
 ```mermaid
 sequenceDiagram
     actor A as Alice
+    participant API
     participant CG as CategoryGateway
     participant PG as ProductGateway
 
-    A ->> CG : getTree()
-    CG -->> A: category[]
-    A ->> PG: findCategoryProducts(category1, category2)
-    PG -->> A: products[]
+    A ->> API: GET /categories
+    API ->> CG : getTree()
+    CG -->> API: category[]
+    API --> A: category[]
+
+    Note right of A: Alice wants the products from the categories with ID 1 and 2
+    A ->> API: GET /products?filter[categoryId][]=1&filter[categoryId][]=2
+    API ->> PG: findCategoryProducts([1, 2])
+    PG -->> API: products[]
+    API -->> A: products[]
 ```
 
 ## RF-02: Visualização de produtos e seus fornecedores
 
-Através do *endpoint* GET `/products` podemos obter os `ProductSpec`, que terão no seu interior o fornecedor.
+**Interpretação**: Visualização da especificação dos produtos [e noutra página] dos fornecedores que vendem essa especificação.
+No máximo teríamos um ou dois fornecedores que vendem cada produto na lista de produtos.
 
-<!-- TODO este endpoint -->
-Contudo, para obter todos os fornecedores de um `ProductSpec` podemos usar o endpoint `/products/{id}/suppliers` que nos devolve todos os fornecedores que fornecem esse produto.
+A interface irá ser semelhante a:
+
+- Uma lista principal, paginada, de `ProductSpec`, com preço mínimo, máximo, e médio dos fornecedores.
+- Após clicar num `ProductSpec`, irá abrir uma página com mais detalhes sobre o `ProductSpec` tais como uma descrição mais detalhada e os valores dos *fields* das categorias. Terá de ter também um botão para comparar com outros produtos. Poderá, eventualmente, ter o histórico dos preços dos diversos fornecedores.
+  - Irá ter também a lista de `ProducerProduct`, mostrando o fornecedor e o preço. Ao clicar somos redirecionados para a página do `ProducerProduct`.
+- A página do `ProducerProduct` terá o histórico de preços desse produto e outras informações pertinentes, se bem que já deve estar tudo na página do `ProductSpec`, tornando a página atual mais direcionada à compra.
+
+Através do *endpoint* GET `/products` podemos obter os `ProductSpec`.
+
+<!-- TODO bom nome para o endpoint? confuso? ideias? -->
+Contudo, para obter todos os `ProducerProduct` (e por consequência os fornecedores) de um `ProductSpec` podemos usar o endpoint `/products/{id}/products` que nos devolve todos os fornecedores que fornecem esse produto.
 
 ```mermaid
 sequenceDiagram
     actor A as Alice
-    participant PSC as ProductSpecCatalog
-    participant SC as SupplierCatalog
+    participant API
+    participant PSG as ProductSpecGateway
+    participant PPG as ProducerProductGateway
 
-    A ->> PSC: listProducts()
-    PSC -->> A: productSpec[]
-    A ->> SC: listSuppliers(productSpec1)
-    SC -->> A: suppliers[]
+    A ->> API: GET /products
+    API ->> PSG: find()
+    PSG -->> API: productSpec[]
+    API -->> A: productSpec[]
+
+    Note right of A: Alice wants to see the Producers of the ProductSpec with ID 1
+    A ->> API: GET /products/1/products
+    API ->> PPG: findBySpec(1)
+    PSG -->> API: producerProduct[]
+    API -->> A: producerProduct[]
+    Note right of A: producerProduct[] contains the Producer object
 ```
 
 ## RF-03: Pesquisa de produtos através dos campos comuns a todos os produtos
 
 <!-- TODO enumerar os campos comuns a todos os produtos -->
-Podemos usar o endpoint `/products/search?q=` definindo o parâmetro `q` com o termo que queremos pesquisar. A pesquisa será relativa as campos comuns a todos os produtos.
+Podemos usar o *endpoint* GET `/products/search?q=`, definindo o parâmetro `q` com o termo que queremos pesquisar. A pesquisa será relativa as campos comuns a todos os produtos, sendo estes o nome, TODO completar.
 
 ```mermaid
 sequenceDiagram
     actor A as Alice
-    participant PC as ProductCatalog
+    participant API
+    participant PSC as ProductSpecGateway
 
-    A ->> PC: searchProducts("term")
-    PC -->> A: products[]
+    A ->> API: GET /products/search?q=iphone
+    API ->> PSC: findCommon("iphone")
+    PSC -->> API: productSpec[]
+    API -->> A: productSpec[]
 ```
 
 ## RF-04: Colocação, consulta, e remoção de produtos num cesto de compra
 
 <!-- TODO endpoints /cart -->
-Para colocar um produto no carrinho de compras podemos usar o endpoint `/cart/@me/products/{productId}` com o método `PUT`, em que `productId` é id do produto que queremos colocar no carrinho.
+Para colocar um `ProducerProduct` no carrinho de compras podemos usar o endpoint `/consumers/{consumerId}/cart/products/{productId}` com o método `PUT`, em que `productId` é o id do `ProducerProduct` que queremos colocar no carrinho.
 
 ```mermaid
 sequenceDiagram
     actor A as Alice
-    participant CC as CartCatalog
-    participant C as Cart: cart
+    participant API
+    participant CG as ConsumerGateway
+    participant CaG as CartGateway
+    participant PPG as ProducerProductGateway
 
-    A ->> CC: getCart(@me)
-    CC ->> C: get()
-    activate C
-    C -->> CC: cart
-    CC -->> A: cart
-    A ->> C: addProduct(productId)
-    C -->> A: productAdded
-    deactivate C
+    A ->> API: PUT /consumers/{consumerId}/cart/products/1
+    API ->> CG: get(consumerId)
+    CG -->> API: consumer
+    API ->> CaG: get(consumer)
+    CaG -->> API: cart
+    API ->> PPG: find(1)
+    PPG -->> API: producerProduct
+    API ->> CaG: addProduct(cart, producerProduct)
+    CaG -->> API: cart
+    API -->> A: cart
 ```
 
-Para consultar os produtos no carrinho podemos usar o endpoint `/cart/@me/products` com o método `GET`.
+Para consultar os produtos no carrinho podemos usar o endpoint `/consumers/{consumerId}/cart/products` com o método `GET`.
 
 ```mermaid
 sequenceDiagram
     actor A as Alice
-    participant CC as CartCatalog
-    participant C as Cart: cart
+    participant API
+    participant CG as ConsumerGateway
+    participant CaG as CartGateway
 
-    A ->> CC: getCart(@me)
-    CC ->> C: get()
-    activate C
-    C -->> CC: cart
-    CC -->> A: cart
-    A ->> C: listProducts()
-    C -->> A: products[]
-    deactivate C
+    A ->> API: GET /consumers/{consumerId}/cart/products
+    API ->> CG: get(consumerId)
+    CG -->> API: consumer
+    API ->> CaG: getProducts(consumer)
+    CaG -->> API: producerProduct[]
+    API -->> A: producerProduct[]
 ```
 
-Remover um produto do carrinho é feito através do endpoint `/cart/@me/products/{productId}` com o método `DELETE`.
+Remover um produto do carrinho é feito através do endpoint `/consumers/{consumerId}/cart/products/{productId}` com o método `DELETE`.
 
 ```mermaid
 sequenceDiagram
     actor A as Alice
-    participant CC as CartCatalog
-    participant C as Cart: cart
+    participant API
+    participant CG as ConsumerGateway
+    participant CaG as CartGateway
 
-    A ->> CC: getCart(@me)
-    CC ->> C: get()
-    activate C
-    C -->> CC: cart
-    CC -->> A: cart
-    A ->> C: removeProduct(productId)
-    C -->> A: productRemoved
-    deactivate C
+    A ->> API: DELETE /consumers/{consumerId}/cart/products/1
+    API ->> CG: get(consumerId)
+    CG -->> API: consumer
+    API ->> CaG: get(consumer)
+    CaG -->> API: cart
+    API ->> CaG: removeProduct(cart, 1)
+    CaG -->> API: removedProduct
+    API -->> A: removedProduct
 ```
 
 ## RF-05: Criação de uma conta no sistema
 
-### Opção 1
-
-<!-- TODO desta forma temos os campos todos a null???? 
-deveriamos antes fazer uma tabela de credenciais? mas aí teriamos de permitir que a FK utilizador seja nulável -->
-1. O utilizador tem de se registar. Como utilizamos um sistema externo de autenticação, temos de usar o *endpoint* `/auth/login` que irá criar uma credencial no sistema e *autenticar* o utilizador.
-<!-- TODO escrever sobre isto na API.
-Tem de permitir que um Admin crie contas para outros utilizadores. Passar o token no body? -->
-2. O utilizador tem de criar a sua conta. Para isto temos de usar o endpoint `/users` com o método `POST`. Este *endpoint* é protegido, por isso temos de usar o *access token* obtido anteriormente.
-
-```mermaid
-sequenceDiagram
-    actor A as Alice
-    participant F as Firebase
-    participant Au as LocalAuthService
-    participant UC as UserCatalog
-    participant U as User
-
-    A ->> F: authenticate()
-    F -->> A: fbToken
-    A ->> Au: login(fbToken)
-    Note right of F: We may be able to verify locally, skipping this step
-    alt verify token
-        Au ->> F: verifyToken(fbToken)
-        F -->> Au: fbToken
-    end
-    Au -->> A: accessToken
-    A ->> UC: createUser(accessToken, {username, email, ...})
-    UC ->> U: new({username, email, ...})
-    activate U
-    U -->> UC: user
-    UC -->> A: user
-    deactivate U
-```
-
-### Opção 2
-
-1. Criar uma conta sem credenciais relacionadas. Feito através dum `POST` a `/users` com os dados necessários, sendo este *endpoint* **não** protegido.
+1. Criar uma conta sem credenciais relacionadas. Feito através dum `POST` a `/consumers` ou `/producers` com os dados necessários, sendo este *endpoint* **não** protegido.
 2. Após a criação do utilizador com sucesso, solicitar a adição de uma credencial (dos vários tipos `authType` possíveis: `password`, `google`, `facebook`, `twitter`)
    1. Autenticar o utilizador no serviço externo
    2. Obtenção de um token do serviço externo
-   3. Adição da credencial ao utilizador através de `PUT` a `/users/@me/credentials/{authType}`
+   3. Criação da credencial ao utilizador através de `POST` a `/consumers/{consumerId}/credentials` ou `/producers/{producerId}/credentials`, dependendo do tipo de utilizador.
+
+   - Até à adição da credencial, o utilizador ficará num estado em que apenas existe partialmente. Se não adicionarmos uma credencial, o utilizador não se poderá autenticar, ocupando recursos de forma desnecessária.
+
+Iremos apenas contemplar a criação de um `Consumidor`, mas o processo é idêntico para um `Producer`
 
 ```mermaid
 sequenceDiagram
     actor A as Alice
+    participant API
+    participant CG as ConsumerGateway
     participant F as Firebase
-    participant Au as LocalAuthService
-    participant UC as UserCatalog
-    participant U as User
+    participant Au as AuthService
+    participant CredG as CredentialGateway
+    participant EAu as ExternalAuthGateway
 
-    A ->> UC: createUser(accessToken, {username, email, ...})
-    UC ->> U: new({username, email, ...})
-    activate U
-    U -->> UC: user
-    UC -->> A: user
-    A ->> F: authenticate()
-    F -->> A: fbToken
-    Note left of Au: This is weird because login would require a user to already exist and be related to the credentials
-    A ->> Au: login(fbToken)
-    Note left of Au: We may be able to verify locally, skipping this step
+    A ->> API: POST /consumers
+    API ->> CG: new({name, email, ...})
+    CG -->> API: temporaryToken
+    API -->> A: temporaryToken
+
+    A ->> F: authenticate(email, password)
+    F -->> A: token
+
+    A ->> API: POST /consumers/{consumerId}/credentials
+    API ->> Au: authenticate(temporaryToken)
+    Au ->> CredG: get(temporaryToken)
+    CredG -->> Au: consumer
+    Au -->> API: consumer
+
+    API ->> CredG: checkUnique(token)
+    CredG -->> API: true
+
+    API ->> Au: addCredential(consumer, {authType: "password", token})
+
+    Note right of Au: We may be able to verify locally, skipping this step
     alt verify token
-        Au ->> F: verifyToken(fbToken)
-        F -->> Au: fbToken
+        Au ->> EAu: verifyToken(extToken)
+        EAu -->> Au: extToken
     end
-    Au -->> A: accessToken
-    A ->> U: addCredential(accessToken)
-    U -->> A: credentialAdded
-    deactivate U
+
+    Au ->> CredG: new({authType: "password", token})
+    CredG -->> Au: credential
+    Au -->> API: credential
+    API -->> A: credential
 ```
 
 ## RF-06: Fazer login no sistema
@@ -225,41 +238,67 @@ Usar o *endpoint* `/auth/login` com o método `POST`, forneçendo o *token* no *
 sequenceDiagram
     actor A as Alice
     participant F as Firebase
-    participant Au as LocalAuthService
+    participant API
+    participant Au as AuthService
+    participant EAu as ExternalAuthGateway
+    participant CredG as CredentialGateway
+    participant CG as ConsumerGateway
+    participant C as Consumer
 
     A ->> F: authenticate()
-    F -->> A: fbToken
-    A ->> Au: login(fbToken)
-    Note right of F: We may be able to verify locally, skipping this step
+    F -->> A: extToken
+
+    A ->> API: POST /auth/login
+    API ->> Au: authenticate(extToken)
+
+    Note right of Au: We may be able to verify locally, skipping this step
     alt verify token
-        Au ->> F: verifyToken(fbToken)
-        F -->> Au: fbToken
+        Au ->> EAu: verifyToken(extToken)
+        EAu -->> Au: extToken
     end
-    # TODO check if user is disabled
-    Au -->> A: accessToken    
+
+    Au ->> CredG: get(extToken)
+    CredG -->> Au: credential
+
+    Note right of Au: We can apply this to Producer as well
+    Au ->> CG: get(credential.userId)
+    CG -->> Au: consumer
+
+    Au ->> C: canLogin()
+    C -->> Au: true
+
+    Au ->> Au: generateAccessToken(credential)
+    Au -->> API: accessToken
+    API -->> A: accessToken    
 ```
 
 ## RF-07: Edição dos dados e remoção da sua conta no sistema
 
-Para editar os dados do utilizador podemos usar o *endpoint* `/users/@me` com o método `PUT`.
+<!-- TODO rever por causa de usar um User (modelo Concrete) -->
+
+O aplicado em `/consumers` é aplicado da mesma forma em `/producers`.
+
+### Edição
+
+Para editar os dados do utilizador podemos usar o *endpoint* `/consumers/{consumerId}` com o método `PUT`.
 
 ```mermaid
 sequenceDiagram
     actor A as Alice
-    participant UC as UserCatalog
-    participant U as User
+    participant API
+    participant CG as ConsumerGateway
+    participant C as Consumer
 
-    A ->> UC: getUser(@me)
-    UC ->> U: get()
-    activate U
-    U -->> UC: user
-    UC -->> A: user
-    A ->> U: edit({username, email, ...})
-    U -->> A: userEdited
-    deactivate U
+    A ->> API: PUT /consumers/{consumerId}
+    API ->> CG: get(consumerId)
+    CG -->> API: consumer
 ```
 
-Para remover a conta do utilizador podemos usar o *endpoint* `/users/@me` com o método `DELETE`.
+### Remoção
+
+<!-- TODO rever por causa de usar um User (modelo Concrete) -->
+
+Para remover a conta do utilizador podemos usar o *endpoint* `/consumers/{consumerId}` com o método `DELETE`.
 
 ```mermaid
 sequenceDiagram
@@ -267,7 +306,7 @@ sequenceDiagram
     participant UC as UserCatalog
     participant U as User
 
-    A ->> UC: getUser(@me)
+    A ->> UC: getUser(consumerId)
     UC ->> U: get()
     activate U
     U -->> UC: user
@@ -281,26 +320,38 @@ sequenceDiagram
 
 Usando o mesmo *endpoint* `/products/search?q=` do [rf-03](#rf-03-pesquisa-de-produtos-através-dos-campos-comuns-a-todos-os-produtos) mas adicionando os campos específicos das categorias.
 
+Ver [notas da api](#notas-sobre-api) para detalhes de utilização de filtros.
+
 ```mermaid
 sequenceDiagram
     actor A as Alice
-    participant PC as ProductCatalog
+    participant API
+    participant PG as ProductGateway
 
-    A ->> PC: search({q, filter})
-    PC -->> A: products
+    A ->> API: GET /products/search?filter[category][name]=fruit
+    API ->> PG: search({category: {name: "fruit"}})
+    PG -->> API: productSpec[]
+    API -->> A: productSpec[]
 ```
 
 ## RF-09: Visualização do histórico de encomendas e seus detalhes
 
-Para obter o histórico de encomendas do utilizador podemos usar o *endpoint* `/consumers/@me/orders` com o método `GET`.
+Para obter o histórico de encomendas do utilizador podemos usar o *endpoint* `/consumers/{consumerId}/orders` com o método `GET`.
 
 ```mermaid
 sequenceDiagram
     actor A as Alice
-    participant OC as OrderCatalog
+    participant API
+    participant CG as ConsumerGateway
+    participant OG as OrderGateway
 
-    A ->> OC: getOrders(@me)
-    OC -->> A: order[]
+    A ->> API: GET /consumers/{consumerId}/orders
+    API ->> CG: get(consumerId)
+    CG -->> API: consumer
+
+    API ->> OG: getOrders(consumer)
+    OG -->> API: order[]
+    API -->> A: order[]
 ```
 
 ## RF-10: Comparação de dois produtos, com as diferenças em destaque
@@ -309,11 +360,12 @@ Obter os dois `ProductSpec` e iterar sobre as propriedades (e valores das catego
 
 Devemos definir se é possível comparar dois `ProductSpec` de categorias diferentes.
 
-Convém definir se podemos comparar `Product` com `Product`, possibilitando comparar o mesmo `ProductSpec` de fornecedores diferentes, ou se tem de ser `ProductSpec` com `ProductSpec`
+Convém definir se podemos comparar `ProducerProduct` com `ProducerProduct`, possibilitando comparar o mesmo `ProductSpec` de fornecedores diferentes, `ProductSpec` com `ProductSpec`, ou ambos.
 
 1. Com a primeira podemos comparar custos e impacto na comunidade
     - A especificação da API seria um `GET` a `/producers/{producerId}/products/{product1}/compare/{product2}`.
-1. Com a segunda só queremos saber das diferenças da especificação do produto, que nem inclui o preço
+      - Isto parece estranho porque semânticamente estariamos a comparar produtos de um fornecedor com outro produto do mesmo fornecedor (e não outro produto qualquer)
+2. Com a segunda só queremos saber das diferenças da especificação do produto, que nem inclui o preço
     - A especificação da API seria um `GET` a `/products/{product1}/compare/{product2}`.
 
 Podemos implementar ambos, mas acho que o primeiro é mais interessante.
@@ -321,99 +373,122 @@ Podemos implementar ambos, mas acho que o primeiro é mais interessante.
 ```mermaid
 sequenceDiagram
     actor A as Alice
-    participant PC as ProductCatalog
-    participant P as Product
+    participant API
+    participant PSG as ProductSpecGateway
+    participant PS as ProductSpec
 
-    A ->> PC: getProduct(1)
-    PC ->> P: get()
-    activate P
-    P -->> PC: product1
-    PC -->> A: product1
+    A ->> API: GET /products/{product1}/compare/{product2}
 
-    A ->> PC: getProduct(2)
-    PC ->> P: get()
-    activate P
-    P -->> PC: product2
-    PC -->> A: product2
+    API ->> PSG: get(1)
+    PSG -->> API: product1
 
-    A ->> P: product1.compare(product2)
-    P -->> A: differences
+    API ->> PSG: get(2)
+    PSG -->> API: product2
 
-    deactivate P
-    deactivate P
+    API ->> PS: product1.compare(product2)
+    PS -->> API: differences
+
+    API -->> A: differences
 ```
 
 ## RF-11: Encomenda dos produtos no cesto de compras
 
-A especificação da API seria um `POST` a `/orders` com o *body* a conter o `userId` e o `cartId`.
+A especificação da API seria um `POST` a `/consumers/{consumerId}/orders` com o *body* a conter o `cartId`.
 
 ```mermaid
 sequenceDiagram
     actor A as Alice
-    participant C as Cart
-    participant OC as OrderCatalog
+    participant API
+    participant CG as ConsumerGateway
+    participant CaG as CartGateway
+    participant OF as OrderFactory
+    participant OG as OrderGateway
     participant O as Order
+    participant C as Cart
+    participant PPG as ProducerProductGateway
     participant OI as OrderItem
+    participant OIG as OrderItemGateway
 
-    A ->> C: createOrder()
-    C ->> OC: createOrder({userId, cartId})
-    OC ->> O: new({userId, cartId})
-    activate O
+    A ->> API: POST /consumers/{consumerId}/orders
 
-    O ->> C: getProducts()
-    C -->> O: product[]
+    API ->> CG: get(consumerId)
+    CG -->> API: consumer
 
-    loop for each product in products
-        O ->> OI: new({productId, quantity})
-        activate OI
-        OI -->> O: orderItem
-        deactivate OI
+    API ->> CaG: getByConsumer(consumer)
+    CaG -->> API: cart
 
-        O ->> O: addOrderItem(orderItem)
+    API ->> OF: createFromCart(cart)
+    OF ->> O: new Order()
+
+    OF ->> C: getProducts()
+    C ->> PPG: findFromCart(cart)
+    PPG -->> C: product[]
+    C -->> OF: product[]
+
+    loop for each product
+        OF ->> OI: new(order, product)
+        OF ->> O: addItem(orderItem)
+        OF ->> OIG: save(orderItem)
     end
 
-    O -->> OC: order
-    OC -->> A: order
-    deactivate O
+    OF ->> OG: save(order)
+    OF -->> API: order
+    API -->> A: order
 ```
 
 ## RF-12: Pagamento de encomenda recorrendo a um sistema externo
 
 Serviço externo: [**Stripe**](https://stripe.com), usando o [**Stripe Checkout**](https://stripe.com/docs/payments/checkout).
 
-Começamos então por fazer um pedido `POST` ao *endpoint* `/orders/{orderId}/checkout` irá criar um *checkout session* no *Stripe* e redirecionar o utilizador para o preenchimento de dados relativos ao pagamento, do lado do *Stripe*.
+Começamos então por fazer um pedido `POST` ao *endpoint* `/consumers/{consumerId}/orders/{orderId}/checkout` irá criar um *checkout session* no *Stripe* e redirecionar o utilizador para o preenchimento de dados relativos ao pagamento, do lado do *Stripe*.
 
 Após a introdução dos dados de pagamento, o *Stripe* irá confirmar o sucesso da operação ao submeter um pedido `POST` a `/payments/webhook`, *aka* *webhook*.
 
 ```mermaid
 sequenceDiagram
     actor A as Alice
+    participant API
+    participant CG as ConsumerGateway
+    participant OG as OrderGateway
     participant O as Order
     participant PG as PaymentGateway
     participant S as Stripe
     participant Su as Supplier
 
-    A ->> O: checkout()
-    O ->> PG: createCheckoutSession()
-    PG ->> S: createCheckoutSession()
+    A ->> API: POST /consumers/{consumerId}/orders/{orderId}/checkout
+
+    API ->> CG: get(consumerId)
+    CG -->> API: consumer
+
+    API ->> OG: get(orderId)
+    OG -->> API: order
+
+    API ->> PG: createCheckoutSession(order)
+    PG ->> S: createCheckoutSession(order)
     S -->> PG: checkoutSession
-    PG -->> O: checkoutSession
-    O -->> A: checkoutSession
+    PG -->> API: checkoutSession
+
+    API -->> A: checkoutSession
 
     Note right of A: Redirect to checkoutSession.url
     Note right of A: Fill payment details and submit to external service
 
-    S -->> PG: webhook
-    PG ->> O: setPaid()
-    Note right of O: See RF-14 for notification details
-    O -->> A: notifyPaid
-    O -->> Su: notifyNewOrder
+    S ->> API: POST /payments/webhook
+    API ->> PG: handleWebhook()
+    PG ->> OG: updateStatus(order, paid)
+    OG -->> PG: order
+    PG -->> API: order
+
+    Note right of O: Notify subscribers. See RF-14
+
+    API -->> S: 200 OK
 ```
 
 ## RF-13: Cancelamento de encomenda, desde que dentro de um dado prazo
 
-A especificação da API seria um `DELETE` a `/orders/{orderId}`.
+A especificação da API seria um `DELETE` a `/consumers/{consumerId}/orders/{orderId}`.
 
+<!-- TODO -->
 Importante!!! Falta definir o prazo de cancelamento e outras regras.
 
 Sugeria que o prazo de cancelamento fosse de 24h, mas que o utilizador pudesse cancelar a qualquer momento, desde que o produto ainda não tivesse sido enviado.
@@ -425,67 +500,46 @@ Este requisito será simplificado, i.e., o utilizador apenas pode cancelar encom
 ```mermaid
 sequenceDiagram
     actor A as Alice
+    participant API
+    participant CG as ConsumerGateway
+    participant OG as OrderGateway
     participant O as Order
-    participant Su as Supplier
-    participant OI as OrderItem
-    participant P as Product
     participant PG as PaymentGateway
     participant S as Stripe
 
-    A ->> O: getStatus()
-    O -->> A: status
-    Note left of O: If order shipped then we cannot cancel
-    A ->> O: cancel()
-    
-    Note right of O: Implementation of different cancellation policies
-    alt less than 24h since order
-        O ->> O: cancel()
-        O -->> A: orderCancelled
-    else less than maximum supplier defined time since order
-        Note right of O: Calculate max time to cancel
-        O ->> OI: getProducts()
-        OI -->> O: product[]
+    A ->> API: DELETE /consumers/{consumerId}/orders/{orderId}
 
-        loop for each product
-            O ->> Su: getMaxCancelTime()
-            Su -->> O: cancelTime
-        end
+    API ->> CG: get(consumerId)
+    CG -->> API: consumer
 
-        Note left of O: Whether we can cancel
-        alt less than MAX(cancelTime) since order
-            O ->> O: cancel()
-            O -->> A: orderCancelled
-        else more than MAX(cancelTime) since order
-            O -->> A: orderCannotBeCancelled
-        end
-    else less than all of products return policy
-        Note right of O: Calculate max time to cancel
-        O ->> OI: getProducts()
-        OI -->> O: product[]
+    API ->> OG: get(orderId)
+    OG -->> API: order
 
-        loop for each product
-            O ->> P: getMaxCancelTime()
-            P -->> O: cancelTime
-        end
+    Note right of API: Check if order is cancelable
+    API ->> O: canCancel()
+    O -->> API: true
 
-        Note left of O: Whether we can cancel
-        alt less than MAX(cancelTime) since order
-            O ->> O: cancel()
-            O -->> A: orderCancelled
-        else more than MAX(cancelTime) since order
-            O -->> A: orderCannotBeCancelled
-        end
-    end
-    
-    Note right of O: If order paid then refund
+    Note right of API: Affect state, making order cancelled
+    API ->> O: cancel()
+    O -->> API: order
+
+    API ->> OG: save(order)
+    OG -->> API: updatedOrder
+
     alt Order paid
-        O ->> PG: refund(id)
+        API ->> PG: refund(updatedOrder.payment)
         PG ->> S: refund(id)
         Note right of S: Stripe will notify us through webhook
-        S -->> PG: refund
-        PG -->> O: refund
-        O -->> A: notifyUserRefund
+        S ->> API: POST /payments/webhook
+        API ->> PG: handleWebhook()
+        Note right of O: Notify subscribers. See RF-14
+        PG ->> O: setStatus(refunded)
+        O -->> PG: order
+        PG -->> API: order
+        API -->> S: 200 OK
     end
+
+    API -->> A: updatedOrder        
 ```
 
 ## RF-14: Notificação sobre a saída de produtos encomendados de um fornecedor
