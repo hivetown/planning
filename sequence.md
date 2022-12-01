@@ -9,11 +9,14 @@
   - [RF-02: Visualização de produtos e seus fornecedores](#rf-02-visualização-de-produtos-e-seus-fornecedores)
   - [RF-03: Pesquisa de produtos através dos campos comuns a todos os produtos](#rf-03-pesquisa-de-produtos-através-dos-campos-comuns-a-todos-os-produtos)
   - [RF-04: Colocação, consulta, e remoção de produtos num cesto de compra](#rf-04-colocação-consulta-e-remoção-de-produtos-num-cesto-de-compra)
+    - [Colocação](#colocação)
+    - [Consulta](#consulta)
+    - [Remoção](#remoção)
   - [RF-05: Criação de uma conta no sistema](#rf-05-criação-de-uma-conta-no-sistema)
   - [RF-06: Fazer login no sistema](#rf-06-fazer-login-no-sistema)
   - [RF-07: Edição dos dados e remoção da sua conta no sistema](#rf-07-edição-dos-dados-e-remoção-da-sua-conta-no-sistema)
     - [Edição](#edição)
-    - [Remoção](#remoção)
+    - [Remoção](#remoção-1)
   - [RF-08: Pesquisa de produtos através dos campos específicos das categorias](#rf-08-pesquisa-de-produtos-através-dos-campos-específicos-das-categorias)
   - [RF-09: Visualização do histórico de encomendas e seus detalhes](#rf-09-visualização-do-histórico-de-encomendas-e-seus-detalhes)
   - [RF-10: Comparação de dois produtos, com as diferenças em destaque](#rf-10-comparação-de-dois-produtos-com-as-diferenças-em-destaque)
@@ -27,11 +30,11 @@
   - [RF-18: Criação, gestão, e remoção de unidade de produção](#rf-18-criação-gestão-e-remoção-de-unidade-de-produção)
     - [Criação](#criação)
     - [Gestão](#gestão)
-    - [Remoção](#remoção-1)
+    - [Remoção](#remoção-2)
   - [RF-19: Criação, gestão, e remoção de produto, e ligação a unidade de produção](#rf-19-criação-gestão-e-remoção-de-produto-e-ligação-a-unidade-de-produção)
     - [Criação](#criação-1)
     - [Gestão](#gestão-1)
-    - [Remoção](#remoção-2)
+    - [Remoção](#remoção-3)
     - [Ligação a unidade de produção](#ligação-a-unidade-de-produção)
   - [RF-20: Visualização de unidade de produção e dos seus produtos](#rf-20-visualização-de-unidade-de-produção-e-dos-seus-produtos)
     - [Visualização de unidade de produção](#visualização-de-unidade-de-produção)
@@ -39,7 +42,7 @@
   - [RF-21: Criação, edição, e remoção de veículo de transporte de produtos](#rf-21-criação-edição-e-remoção-de-veículo-de-transporte-de-produtos)
     - [Criação](#criação-2)
     - [Edição](#edição-1)
-    - [Remoção](#remoção-3)
+    - [Remoção](#remoção-4)
   - [RF-22: Notificação sobre encomenda de consumidor](#rf-22-notificação-sobre-encomenda-de-consumidor)
   - [RF-23: Visualização de encomenda de consumidor](#rf-23-visualização-de-encomenda-de-consumidor)
   - [RF-24: Colocação de produto encomendado em veículo de transporte disponível](#rf-24-colocação-de-produto-encomendado-em-veículo-de-transporte-disponível)
@@ -165,6 +168,7 @@ sequenceDiagram
 
 ## RF-04: Colocação, consulta, e remoção de produtos num cesto de compra
 
+### Colocação
 <!-- TODO endpoints /cart -->
 Para colocar um `ProducerProduct` no carrinho de compras podemos usar o endpoint `/consumers/{consumerId}/cart/products/{productId}` com o método `PUT`, em que `productId` é o id do `ProducerProduct` que queremos colocar no carrinho.
 
@@ -188,6 +192,8 @@ sequenceDiagram
     API -->> A: cart
 ```
 
+### Consulta
+
 Para consultar os produtos no carrinho podemos usar o endpoint `/consumers/{consumerId}/cart/products` com o método `GET`.
 
 ```mermaid
@@ -204,6 +210,8 @@ sequenceDiagram
     CaG -->> API: producerProduct[]
     API -->> A: producerProduct[]
 ```
+
+### Remoção
 
 Remover um produto do carrinho é feito através do endpoint `/consumers/{consumerId}/cart/products/{productId}` com o método `DELETE`.
 
