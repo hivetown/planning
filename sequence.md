@@ -303,6 +303,11 @@ sequenceDiagram
     A ->> API: PUT /consumers/{consumerId}
     API ->> CG: get(consumerId)
     CG -->> API: consumer
+    API ->> C: edit({name, email, ...})
+    C -->> API: consumer
+    API ->> CG: update(consumer)
+    CG -->> API: updatedConsumer
+    API -->> A: updatedConsumer
 ```
 
 ### Remoção
@@ -314,22 +319,18 @@ Para remover a conta do utilizador podemos usar o *endpoint* `/consumers/{consum
 ```mermaid
 sequenceDiagram
     actor A as Alice
-    participant UC as UserCatalog
-    participant U as User
+    participant API
+    participant CG as ConsumerGateway
 
-    A ->> UC: getUser(consumerId)
-    UC ->> U: get()
-    activate U
-    U -->> UC: user
-    UC -->> A: user
-    A ->> U: delete()
-    U -->> A: userDeleted
-    deactivate U
+    A ->> API: DELETE /consumers/{consumerId}
+    API ->> CG: delete(consumerId)
+    CG -->> API: deletedUser
+    API -->> A: deletedUser
 ```
 
 ## RF-08: Pesquisa de produtos através dos campos específicos das categorias
 
-Usando o mesmo *endpoint* `/products/search?q=` do [rf-03](#rf-03-pesquisa-de-produtos-através-dos-campos-comuns-a-todos-os-produtos) mas adicionando os campos específicos das categorias.
+Usando o mesmo *endpoint* `/products/search` do [rf-03](#rf-03-pesquisa-de-produtos-através-dos-campos-comuns-a-todos-os-produtos) mas adicionando os campos específicos das categorias.
 
 Ver [notas da api](#notas-sobre-api) para detalhes de utilização de filtros.
 
@@ -702,23 +703,25 @@ A gestão de uma unidade de produção é feita através de um *endpoint* própr
 ```mermaid
 sequenceDiagram
     actor A as Alice
-    participant PC as ProducerCatalog
-    participant P as Producer
-    participant UC as UnitCatalog
+    participant API as API
+    participant UG as UnitGateway
     participant U as Unit
 
-    A ->> PC: findProducer(producerId)
-    PC -->> A: producer
+    A ->> API: PUT /producers/{producerId}/units/{unitId}
 
-    A ->> P: updateUnit(unitId, {name, description, etc})
+    API ->> UG: get(unitId)
+    activate U
+    UG -->> API: unit
 
-    P ->> UC: findUnit(unitId)
-    UC -->> P: unit
+    Note right of API: We update the unit with the new data
+    API ->> U: update({name, description, etc})
+    U -->> API: updatedUnit
 
-    P ->> U: update({name, description, etc})
-    U -->> P: updatedUnit
+    API ->> UG: update(updatedUnit)
+    UG -->> API: savedUnit
+    deactivate U
 
-    P -->> A: updatedUnit
+    API -->> A: savedUnit
 ```
 
 ### Remoção
@@ -728,13 +731,15 @@ A remoção de uma unidade de produção é feita através de um *endpoint* pró
 ```mermaid
 sequenceDiagram
     actor A as Alice
-    participant UC as UnitCatalog
-    participant U as Unit
+    participant API as API
+    participant UG as UnitGateway
 
-    A ->> UC: deleteUnit(producerId, unitId)
-    UC ->> U: delete()
-    U -->> UC: deletedUnit
-    UC -->> A: deletedUnit
+    A ->> API: DELETE /producers/{producerId}/units/{unitId}
+
+    API ->> UG: delete(unitId)
+    UG -->> API: deletedUnit
+
+    API -->> A: deletedUnit
 ```
 
 ## RF-19: Criação, gestão, e remoção de produto, e ligação a unidade de produção
@@ -748,23 +753,25 @@ De forma semelhante ao [RF-18](#rf-18-criação-gestão-e-remoção-de-unidade-d
 ```mermaid
 sequenceDiagram
     actor A as Alice
-    participant PC as ProducerCatalog
-    participant P as Producer
-    participant Pr as Product
+    participant API as API
+    participant PF as ProductFactory
+    participant P as Product
+    participant PG as ProductGateway
 
-    A ->> PC: findProducer(producerId)
-    PC -->> A: producer
+    A ->> API: POST /producers/{producerId}/products
 
-    A ->> P: createProduct({name, description, etc})
-    P ->> Pr: new({name, description, etc})
-    activate Pr
+    API ->> PF: create(producer, {name, description, etc})
 
-    Pr ->> Pr: persist()
+    PF ->> P: new(producer, {name, description, etc})
+    activate P
+    P -->> PF: product
 
-    Pr -->> P: product
+    PF ->> PG: create(product)
+    PG -->> PF: savedProduct
+    deactivate P
 
-    P -->> A: product
-    deactivate Pr
+    PF -->> API: savedProduct
+    API -->> A: savedProduct
 ```
 
 ### Gestão
@@ -774,34 +781,43 @@ De forma semelhante ao [RF-18](#rf-18-criação-gestão-e-remoção-de-unidade-d
 ```mermaid
 sequenceDiagram
     actor A as Alice
-    participant PC as ProducerCatalog
-    participant P as Producer
-    participant PrC as ProductCatalog
-    participant Pr as Product
-    participant PrP as ProductPricing
+    participant API as API
+    participant PG as ProductGateway
+    participant P as Product
+    participant PPF as ProductPriceFactory
+    participant PP as ProductPrice
+    participant PPG as ProductPriceGateway
 
-    A ->> PC: findProducer(producerId)
-    PC -->> A: producer
+    A ->> API: PUT /producers/{producerId}/products/{productId}
 
-    A ->> P: updateProduct(productId, {name, description, etc})
+    API ->> PG: get(productId)
+    activate P
+    PG -->> API: product
 
-    P ->> PrC: findProduct(productId)
-    PrC -->> P: product
-
-    P ->> Pr: update({name, description, etc})
-
+    Note right of API: We update the product with the new data
+    API ->> P: update({name, description, etc})
+    
     alt price is changed
-        Pr ->> PrP: new({productId, currentPrice})
-        activate PrP
-        PrP ->> PrP: persist()
-        PrP -->> Pr: productPricing
-        deactivate PrP
+        P ->> PPF: createPrice(product, {price})
+        PPF ->> PP: new({product, currentPrice})
+        activate PP
+        PP -->> PPF: productPrice
+        PPF ->> PPG: create(productPrice)
+        PPG -->> PPF: savedProductPrice
+        deactivate PP
+        PPF -->> P: savedProductPrice
 
-        Note right of Pr: price = currentPrice
+        Note right of P: price = currentPrice
     end
 
-    Pr -->> P: updatedProduct
-    P -->> A: updatedProduct
+
+    P -->> API: updatedProduct
+
+    API ->> PG: update(updatedProduct)
+    PG -->> API: savedProduct
+    deactivate P
+
+    API -->> A: savedProduct
 ```
 
 ### Remoção
@@ -811,23 +827,15 @@ De forma semelhante ao [RF-18](#rf-18-criação-gestão-e-remoção-de-unidade-d
 ```mermaid
 sequenceDiagram
     actor A as Alice
-    participant PC as ProducerCatalog
-    participant P as Producer
-    participant UC as UnitCatalog
-    participant U as Unit
+    participant API as API
+    participant PG as ProductGateway
 
-    A ->> PC: findProducer(producerId)
-    PC -->> A: producer
+    A ->> API: DELETE /producers/{producerId}/products/{productId}
 
-    A ->> P: removeProduct(unitId, productId)
+    API ->> PG: delete(productId)
+    PG -->> API: deletedProduct
 
-    P ->> UC: findUnit(unitId)
-    UC -->> P: unit
-    
-    P ->> U: removeProduct(product)
-    U -->> P: removedProduct
-
-    P -->> A: removedProduct
+    API -->> A: deletedProduct
 ```
 
 ### Ligação a unidade de produção
@@ -837,27 +845,30 @@ Para ligar um produto a uma unidade de produção é necessário que ambos tenha
 ```mermaid
 sequenceDiagram
     actor A as Alice
-    participant PC as ProducerCatalog
-    participant P as Producer
-    participant UC as UnitCatalog
-    participant PrC as ProductCatalog
+    participant API as API
+    participant UG as UnitGateway
     participant U as Unit
+    participant PG as ProductGateway
+    
+    A ->> API: PUT /producers/{producerId}/units/{unitId}/products/{productId}
 
-    A ->> PC: findProducer(producerId)
-    PC -->> A: producer
+    API ->> UG: get(unitId)
+    activate U
+    UG -->> API: unit
 
-    A ->> P: addProductToUnit(unitId, productId)
+    API ->> PG: get(productId)
+    PG -->> API: product
 
-    P ->> UC: findUnit(unitId)
-    UC -->> P: unit
+    Note right of API: We add the product to the unit
+    API ->> U: addProduct(product)
+    U -->> API: updatedUnit
+    
+    API ->> UG: update(updatedUnit)
+    UG -->> API: savedUnit
 
-    P ->> PrC: findProduct(productId)
-    PrC -->> P: product
+    deactivate U
 
-    P ->> U: addProduct(product)
-    U -->> P: unit
-
-    P -->> A: unit
+    API -->> A: savedUnit
 ```
 
 ## RF-20: Visualização de unidade de produção e dos seus produtos
@@ -871,10 +882,15 @@ Apenas obtém os dados base da unidade de produção, através de `GET` a `/prod
 ```mermaid
 sequenceDiagram
     actor A as Alice
-    participant UC as UnitCatalog
+    participant API as API
+    participant UG as UnitGateway
 
-    A ->> UC: findUnit(producerId, unitId)
-    UC -->> A: unit
+    A ->> API: GET /producers/{producerId}/units/{unitId}
+
+    API ->> UG: get(unitId)
+    UG -->> API: unit
+
+    API -->> A: unit
 ```
 
 ### Visualização dos produtos da unidade de produção
@@ -885,14 +901,19 @@ De forma a obter a coleção de produtos da unidade de produção, efetua-se `GE
 ```mermaid
 sequenceDiagram
     actor A as Alice
-    participant UC as UnitCatalog
-    participant U as Unit
+    participant API as API
+    participant UG as UnitGateway
+    
+    A ->> API: GET /producers/{producerId}/units/{unitId}/products
 
-    A ->> UC: findUnit(producerId, unitId)
-    UC -->> A: unit
+    API ->> UG: get(unitId)
+    UG -->> API: unit
 
-    A ->> U: listProducts()
-    U -->> A: products
+    Note right of API: We get the products from the unit
+    API ->> U: getProducts()
+    U -->> API: products
+
+    API -->> A: products
 ```
 
 ## RF-21: Criação, edição, e remoção de veículo de transporte de produtos
@@ -908,23 +929,25 @@ De forma semelhante ao [RF-18](#rf-18-criação-gestão-e-remoção-de-unidade-d
 ```mermaid
 sequenceDiagram
     actor A as Alice
-    participant PC as ProducerCatalog
-    participant P as Producer
+    participant API as API
+    participant CF as CarrierFactory
+    participant CG as CarrierGateway
     participant C as Carrier
 
-    A ->> PC: findProducer(producerId)
-    PC -->> A: producer
+    A ->> API: POST /producers/{producerId}/carriers
 
-    A ->> P: createCarrier({name, description, etc})
-    P ->> C: new({name, description, etc})
+    Note right of API: We create the carrier
+    API ->> CF: createCarrier(producerId, {name, description, etc})
+    CF ->> C: new(producerId, {name, description, etc})
     activate C
+    C -->> CF: carrier
 
-    C ->> C: persist()
-
-    C -->> P: carrier
-
-    P -->> A: carrier
+    CF ->> CG: create(carrier)
+    CG -->> CF: savedCarrier
     deactivate C
+    CF -->> API: savedCarrier
+
+    API -->> A: savedCarrier
 ```
 
 ### Edição
@@ -934,14 +957,20 @@ De forma semelhante ao [RF-18](#rf-18-criação-gestão-e-remoção-de-unidade-d
 ```mermaid
 sequenceDiagram
     actor A as Alice
-    participant CC as CarrierCatalog
+    participant CG as CarrierGateway
     participant C as Carrier
 
-    A ->> CC: findCarrier(producerId, carrierId)
-    CC -->> A: carrier
+    A ->> API: PUT /producers/{producerId}/carriers/{carrierId}
 
-    A ->> C: update({name, description, etc})
-    C -->> A: updatedCarrier
+    API ->> CG: get(carrierId)
+    CG -->> API: carrier
+
+    Note right of API: We edit the carrier
+
+    API ->> CG: update(carrier)
+    CG -->> API: savedCarrier
+
+    API -->> A: savedCarrier
 ```
 
 ### Remoção
@@ -951,13 +980,15 @@ De forma semelhante ao [RF-18](#rf-18-criação-gestão-e-remoção-de-unidade-d
 ```mermaid
 sequenceDiagram
     actor A as Alice
-    participant PC as ProducerCatalog
-    participant C as Carrier
+    participant API as API
+    participant CG as CarrierGateway
 
-    A ->> CC: deleteCarrier(producerId, carrierId)
-    CC ->> C: delete()
-    C -->> CC: deletedCarrier
-    CC -->> A: deletedCarrier
+    A ->> API: DELETE /producers/{producerId}/carriers/{carrierId}
+
+    API ->> CG: delete(carrierId)
+    CG -->> API: deletedCarrier
+
+    API -->> A: deletedCarrier
 ```
 
 ## RF-22: Notificação sobre encomenda de consumidor
@@ -969,8 +1000,6 @@ Assim, iriamos ter um `ShipmentEvent` criado, cujo `ShipmentStatus` seria encome
 > Notar o diagrama de sequência [acima](#rf-14-notificação-sobre-a-saída-de-produtos-encomendados-de-um-fornecedor). Visto que o `ShipmentEvent` é um evento que ocorre quando a encomenda tem uma atualização no envio, podemos utilizar o mesmo evento para notificar o utilizador sobre a chegada iminente da encomenda.
 
 ## RF-23: Visualização de encomenda de consumidor
-
-<!-- standard -->
 
 A visualização de uma encomenda de consumidor é feita através de um `GET` a `/consumers/{consumerId}/orders/{orderId}`
 
@@ -1010,27 +1039,31 @@ Não sei
 
 ## RF-28: Desativação e reativação de qualquer conta de utilizador no sistema
 
-De forma semelhante ao [RF-18](#rf-18-criação-gestão-e-remoção-de-unidade-de-produção), a desativação de uma conta de utilizador faz-se através de um `PUT` a `/users/{userId}`, especificando o campo `disabledOn` com a data a partir da qual a conta fica desativada ou `null`, de forma a reativar a conta.
+De forma semelhante ao [RF-18](#rf-18-criação-gestão-e-remoção-de-unidade-de-produção), a desativação de uma conta de utilizador faz-se através de um `PUT` a `/consumers/{consumerId}`, especificando o campo `disabledOn` com a data a partir da qual a conta fica desativada ou `null`, de forma a reativar a conta.
+
+O mesmo se aplica aos produtores.
+
+Poderíamos incluir um extra em que permite guardar o histórico de desativações e reativações, assim como quem despoletou a alteração e a razão.
 
 ```mermaid
 sequenceDiagram
     actor A as Alice
     participant API
-    participant UG as UserGateway
+    participant CG as ConsumerGateway
     participant U as User
 
-    A ->> API: PUT /users/{userId}
 
-    API ->> UG: get(userId)
-    UG -->> API: user
+    A ->> API: PUT /consumers/{consumerId}
 
-    API ->> U: update({disabledOn: body.disabledOn})
-    U -->> API: disabledUser
+    API ->> CG: get(userId)
+    CG -->> API: consumer
 
-    API ->> UG: update(disabledUser)
-    UG -->> API: updatedUser
+    Note right of API: We edit the disabledOn field
 
-    API -->> A: updatedUser
+    API ->> CG: update(consumer)
+    CG -->> API: savedConsumer
+
+    API -->> A: savedConsumer
 ```
 
 ## RF-29: Visualização de relatório do impacto local das vendas de produtos
