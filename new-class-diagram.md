@@ -1,4 +1,4 @@
-
+# Diagrama de classes
 
 ```mermaid
 classDiagram
@@ -53,13 +53,8 @@ classDiagram
         -number phone
         -number vat
         -List~Address~ addresses
-
-        +getId() number
-        +getName() String
-        +getEmail() String
-        +getPhone() number
-        +getVat() number
         
+        +canLogin() boolean
     }
 
     class Consumer {
@@ -67,11 +62,11 @@ classDiagram
         -List~Order~ orders
     }
 
-    class ConsumerGateway{
-        +findConsumerById(number id) Consumer
-        +update() Consumer
-        +insert() void
-        +delete() void
+    class ConsumerGateway {
+        +get(number id) Consumer
+        +insert(Consumer consumer) Consumer
+        +update(Consumer consumer) Consumer
+        +delete(Consumer consumer) void
     }
 
     class Producer {
@@ -79,20 +74,20 @@ classDiagram
         List~ProductionUnit~ productionUnits
     }
 
-    class ProducerGateway{
-        +findProducerById(number id) Producer
-        +update() Producer
-        +insert() void
-        +delete() void
+    class ProducerGateway {
+        +get(number id) Producer
+        +insert(Producer producer) Producer
+        +update(Producer producer) Producer
+        +delete(Producer producer) void
     }
 
     class UserType {
         <<enum>>
-        + CONSUMER
-        + PRODUCER
+        +CONSUMER
+        +PRODUCER
     }
 
-    class Address{
+    class Address {
         -number id
         -number number
         -String door
@@ -101,110 +96,83 @@ classDiagram
         -String street
         -String district
         -String county
-        -number latitude 
+        -number latitude
         -number longitude
-
-        +getId() number
-        +getNumber() number
-        +getDoor() String
-        +getFloor() number
-        +getZipCode() String
-        +getStreet() String
-        +getDistrict() String
-        +getCounty() String
-        +getLatitude() number
-        +getLongitude() number
     }
 
-    class AddressGateway{
-        +findAddressById(number id) Address
-        +update() Address
-        +insert() void
-        +delete() void
-
+    class AddressGateway {
+        +get(number id) Address
+        +insert(Address address) Address
+        +update(Address address) Address
+        +delete(Address address) void
     }
 
-    class ProductionUnit{
+    class ProductionUnit {
         -number id
         -Address address
         -Producer producer
         -List~Carrier~ carriers
         -List~ProducerProduct~ products
-
-        +getId() number
-        +getAddress() Address
-        +getProducer() Producer
-        +getCarriers() List~Carrier~
-        +getProducts() List~ProducerProduct~
-    
     }
 
-    class ProductionUnitGateway{
-        +findProductionUnitById(number id) ProductionUnit
-        +update() ProductionUnit
-        +insert() void
-        +delete() void
+    class ProductionUnitGateway {
+        +get(number id) ProductionUnit
+        +insert(ProductionUnit productionUnit) ProductionUnit
+        +update(ProductionUnit productionUnit) ProductionUnit
+        +delete(ProductionUnit productionUnit) void
     }
 
-    class Carrier{
+    class Carrier {
         -number id
         -String licensePlate
-        -ProdcutionUnit productionUnit
+        -ProductionUnit productionUnit
         -CarrierStatus status
-
-        +getId() number
-        +getLicensePlate() String
-        +getProductionUnit() ProductionUnit
-        +getStatus() CarrierStatus
     }
 
-    class CarrierGateway{
-        +findCarrierById(number id) Carrier
-        +update() Carrier
-        +insert() void
-        +delete() void
+    class CarrierGateway {
+        +get(number id) Carrier
+        +insert(Carrier carrier) Carrier
+        +update(Carrier carrier) Carrier
+        +delete(Carrier carrier) void
     }
 
-    class CarrierStatus{
+    %% TODO: isto ser calculado em vez de ser definido
+    class CarrierStatus {
         <<enum>>
         +AVAILABLE
         +UNAVAILABLE
     }
 
-    class OrderItem{
+    class OrderItem {
         -number id
         -number quantity
-        -ConsumerProduct product
         -number price
+        -ProducerProduct product
         -Order order
-
-        +getId() number
-        +getQuantity() number
-        +getProduct() ConsumerProduct
-        +getPrice() number
-        +getOrder() Order
     }
 
-    class Order{
+    %% TODO: necessário?
+    class OrderItemGateway {
+        +get(number id) OrderItem
+        +insert(OrderItem orderItem) OrderItem
+        +update(OrderItem orderItem) OrderItem
+        +delete(OrderItem orderItem) void
+    }
+
+    class Order {
         -number id
-        -Consumer consumer
-        -Address address
-        -List~OrderItem~ items
         -number totalPrice
-        
-        +getId() number
-        +getConsumer() Consumer
-        +getAddress() Address
-        +getItems() List~OrderItem~
-        +getTotalPrice() number
-
+        -Consumer consumer
+        -Address shippingAddress
+        -List~OrderItem~ items
+        %% TODO: devemos calcular em vez de guardar?
     }
 
-    class OrderGateway{
-        +findOrderById(number id) Order
-        +update() Order
-        +insert() void
-        +delete() void
+    class OrderGateway {
+        +get(number id) Order
+        +insert(Order order) Order
+        +update(Order order) Order
+        +delete(Order order) void
     }
 
     class ShipmentEvent{
@@ -213,115 +181,98 @@ classDiagram
         -ShipmentStatus status
         -Address address
         -Date date
-
-        +getId() number
-        +getOrder() Order
-        +getStatus() ShipmentStatus
-        +getAddress() Address
-        +getDate() Date
     }
 
-        
+    class ShipmentEventGateway {
+        +get(number id) ShipmentEvent
+        +insert(ShipmentEvent shipmentEvent) ShipmentEvent
+        +update(ShipmentEvent shipmentEvent) ShipmentEvent
+        +delete(ShipmentEvent shipmentEvent) void
+    }
+
     class ShipmentStatus{
         -number id
         -String name
         -String description
-
-        +getId() number
-        +getName() String
-        +getDescription() String
     }
 
-    class ProducerProduct{
+    %% TODO: necessário? só se for para o admin
+    class ShipmentStatusGateway {
+        +get(number id) ShipmentStatus
+        +insert(ShipmentStatus shipmentStatus) ShipmentStatus
+        +update(ShipmentStatus shipmentStatus) ShipmentStatus
+        +delete(ShipmentStatus shipmentStatus) void
+    }
+
+    class ProducerProduct {
         -number id
-        -Producer producer
-        -List~ProductionUnit~ productionUnits
-        -ProductSpecification spec  
         -number currentPrice
         -date productionDate
+        -Producer producer
+        -List~ProductionUnit~ productionUnits
+        -ProductSpec specification
+        %% TODO: devemos calcular em vez de guardar?
         -ProductStatus status
-
-        +getId() number
-        +getProducer() Producer
-        +getProductionUnits() List~ProductionUnit~
-        +getSpec() ProductSpecification
-        +getCurrentPrice() number
-        +getProductionDate() Date
-        +getStatus() ProductStatus
-
+        -List~ProducerProductPrice~ priceHistory
     }
 
-    class ProducerProductGateway{
-        +findProducerProductById(number id) ProducerProduct
-        +update() ProducerProduct
-        +insert() void
-        +delete() void
+    class ProducerProductGateway {
+        +get(number id) ProducerProduct
+        +insert(ProducerProduct producerProduct) ProducerProduct
+        +update(ProducerProduct producerProduct) ProducerProduct
+        +delete(ProducerProduct producerProduct) void
     }
 
-    class ProductSpecification{
+    class ProductSpecification {
         -number id
         -String name
         -String description
-        -String image
+        -List~String~ images
         -List~Category~ categories
+        %% TODO fieldvalues
         -List~Field~ fields
-
-        +getId() number
-        +getName() String
-        +getDescription() String
-        +getImage() String
-        +getCategories() List~Category~
-        +getFields() List~Field~
     }
 
-    class ProductSpecificationGateway{
-        +findProductSpecificationById(number id) ProductSpecification
-        +update() ProductSpecification
-        +insert() void
-        +delete() void
+    class ProductSpecificationGateway {
+        +get(number id) ProductSpecification
+        +insert(ProductSpecification productSpecification) ProductSpecification
+        +update(ProductSpecification productSpecification) ProductSpecification
+        +delete(ProductSpecification productSpecification) void
     }
 
     class ProductStatus{
         <<enum>>
         +AVAILABLE
-        +SOLD OUT   
+        +SOLD_OUT
     }
 
     class Category{
         -number id
         -String name
         -Category parent
-
-        +getId() number
-        +getParentCategory() Category
-        +getName() String
-
+        %% TODO fields, subCategories?
     }
     
-    class CategoryGateway{
-        +findCategoryById(number id) Category
-        +update() Category
-        +insert() void
-        +delete() void
+    class CategoryGateway {
+        +get(number id) Category
+        +insert(Category category) Category
+        +update(Category category) Category
+        +delete(Category category) void
     }
 
     class Field{
         -number id
-        -String name
+        -string name
+        -string unit
         -FieldType type
-        -String unit
-
-        +getId() number
-        +getName() String
-        +getType() FieldType
-        +getUnit() String
+        %% TODO possible values
     }
 
-    class FieldGateway{
-        +findFieldById(number id) Field
-        +update() Field
-        +insert() void
-        +delete() void
+    class FieldGateway {
+        +get(number id) Field
+        +insert(Field field) Field
+        +update(Field field) Field
+        +delete(Field field) void
     }
 
     class FieldType{
