@@ -98,7 +98,7 @@ sequenceDiagram
     actor A as Alice
     participant API
     participant CG as CategoryGateway
-    participant PG as ProductGateway
+    participant PSG as ProductSpecGateway
 
     A ->> API: GET /categories
     API ->> CG : getTree()
@@ -107,8 +107,8 @@ sequenceDiagram
 
     Note right of A: Alice wants the products from the categories with ID 1 and 2
     A ->> API: GET /products?filter[categoryId][]=1&filter[categoryId][]=2
-    API ->> PG: findCategoryProducts([1, 2])
-    PG -->> API: products[]
+    API ->> PSG: findFromCategory([1, 2])
+    PSG -->> API: products[]
     API -->> A: products[]
 ```
 
@@ -143,7 +143,7 @@ sequenceDiagram
 
     Note right of A: Alice wants to see the Producers of the ProductSpec with ID 1
     A ->> API: GET /products/1/products
-    API ->> PPG: findBySpec(1)
+    API ->> PPG: findFromSpec(1)
     PSG -->> API: producerProduct[]
     API -->> A: producerProduct[]
     Note right of A: producerProduct[] contains the Producer object
@@ -161,7 +161,7 @@ sequenceDiagram
     participant PSC as ProductSpecGateway
 
     A ->> API: GET /products/search?q=iphone
-    API ->> PSC: findCommon("iphone")
+    API ->> PSC: find("iphone")
     PSC -->> API: productSpec[]
     API -->> A: productSpec[]
 ```
@@ -176,20 +176,30 @@ Para colocar um `ProducerProduct` no carrinho de compras podemos usar o endpoint
 sequenceDiagram
     actor A as Alice
     participant API
-    participant CG as ConsumerGateway
     participant CaG as CartGateway
     participant PPG as ProducerProductGateway
+    participant CaIF as CartItemFactory
+    participant CaI as CartItem
+    participant CaIG as CartItemGateway
 
     A ->> API: PUT /consumers/{consumerId}/cart/products/1
-    API ->> CG: get(consumerId)
-    CG -->> API: consumer
-    API ->> CaG: get(consumer)
+    API ->> CaG: get(consumerId)
     CaG -->> API: cart
-    API ->> PPG: find(1)
+    API ->> PPG: get(1)
     PPG -->> API: producerProduct
-    API ->> CaG: addProduct(cart, producerProduct)
-    CaG -->> API: cart
-    API -->> A: cart
+
+    Note right of A: Alice wants to add the ProducerProduct with ID 1 to her cart
+    API ->> CaIF: create(cart, producerProduct)
+
+    CaIF ->> CaI: new(cart, producerProduct, quantity)
+    CaI -->> CaIF: cartItem
+
+    CaIF ->> CaIG: insert(cartItem)
+    CaIG -->> CaIF: savedCartItem
+
+    CaIF -->> API: savedCartItem
+    
+    API -->> A: savedCartItem
 ```
 
 ### Consulta
@@ -200,36 +210,33 @@ Para consultar os produtos no carrinho podemos usar o endpoint `/consumers/{cons
 sequenceDiagram
     actor A as Alice
     participant API
-    participant CG as ConsumerGateway
     participant CaG as CartGateway
+    participant CaIG as CartItemGateway
 
     A ->> API: GET /consumers/{consumerId}/cart/products
-    API ->> CG: get(consumerId)
-    CG -->> API: consumer
-    API ->> CaG: getProducts(consumer)
-    CaG -->> API: producerProduct[]
-    API -->> A: producerProduct[]
+    API ->> CaG: get(consumerId)
+    CaG -->> API: cart
+    API ->> CaIG: findFromCart(cart)
+    CaIG -->> API: cartItem[]
+    API -->> A: cartItem[]
 ```
 
 ### Remoção
-
+<!--  -->
 Remover um produto do carrinho é feito através do endpoint `/consumers/{consumerId}/cart/products/{productId}` com o método `DELETE`.
 
 ```mermaid
 sequenceDiagram
     actor A as Alice
     participant API
-    participant CG as ConsumerGateway
-    participant CaG as CartGateway
+    participant CaIG as CartItemGateway
 
-    A ->> API: DELETE /consumers/{consumerId}/cart/products/1
-    API ->> CG: get(consumerId)
-    CG -->> API: consumer
-    API ->> CaG: get(consumer)
-    CaG -->> API: cart
-    API ->> CaG: removeProduct(cart, 1)
-    CaG -->> API: removedProduct
-    API -->> A: removedProduct
+    A ->> API: DELETE /consumers/{consumerId}/cart/products/{producerProductId}
+    API ->> CaIG: get(consumerId, producerProductId)
+    CaIG -->> API: cartItem
+    API ->> CaIG: delete(cartItem)
+    CaIG -->> API: true
+    API -->> A: true
 ```
 
 ## RF-05: Criação de uma conta no sistema
@@ -242,38 +249,48 @@ sequenceDiagram
 
    - Até à adição da credencial, o utilizador ficará num estado em que apenas existe partialmente. Se não adicionarmos uma credencial, o utilizador não se poderá autenticar, ocupando recursos de forma desnecessária.
 
-Iremos apenas contemplar a criação de um `Consumidor`, mas o processo é idêntico para um `Producer`
+Iremos apenas contemplar a criação de um `Consumer`, mas o processo é idêntico para um `Producer`
 
 ```mermaid
 sequenceDiagram
     actor A as Alice
     participant API
+    participant CF as ConsumerFactory
     participant C as Consumer
     participant CG as ConsumerGateway
-    participant F as Firebase
     participant Au as AuthService
+    participant F as Firebase
+    participant CredF as CredentialFactory
+    participant Cred as Credential
     participant CredG as CredentialGateway
     participant EAu as ExternalAuthGateway
-    participant Cred as Credential
 
+    Note right of A: First, we show the user creation form
     A ->> API: POST /consumers
 
-    API ->> C: new({name, email, ...})
-    C -->> API: consumer
+    API ->> CF: create({name, email, ...})
 
-    API ->> CG: create(consumer)
-    CG -->> API: consumer
+    CF ->> C: new({name, email, ...})
+    C -->> CF: consumer
 
-    API ->> Au: addAuth(consumer, "temporary")
-    Au -->> API: temporaryToken
-    API -->> A: temporaryToken
+    CF ->> CG: insert(consumer)
+    CG -->> CF: savedConsumer
+
+    CF -->> API: savedConsumer
+
+    API ->> Au: createAccessToken(consumer)
+    Au -->> API: temporaryAccessToken
+
+    API -->> A: temporaryAccessToken
 
     A ->> F: authenticate(email, password)
     F -->> A: token
 
+    Note right of A: Then, user is asked to add a credential
+    Note right of A: token is sent in headers
     A ->> API: POST /consumers/{consumerId}/credentials
-    API ->> Au: authenticate(temporaryToken)
-    Au ->> CredG: get(temporaryToken)
+    API ->> Au: authenticate(temporaryAccessToken)
+    Au ->> CredG: get(temporaryAccessToken)
     CredG -->> Au: consumer
     Au -->> API: consumer
 
@@ -359,10 +376,11 @@ sequenceDiagram
 
     A ->> API: PUT /consumers/{consumerId}
     API ->> CG: get(consumerId)
+    activate C
     CG -->> API: consumer
-    API ->> C: edit({name, email, ...})
-    C -->> API: consumer
+    Note right of API: we update the consumer
     API ->> CG: update(consumer)
+    deactivate C
     CG -->> API: updatedConsumer
     API -->> A: updatedConsumer
 ```
@@ -381,8 +399,8 @@ sequenceDiagram
 
     A ->> API: DELETE /consumers/{consumerId}
     API ->> CG: delete(consumerId)
-    CG -->> API: deletedUser
-    API -->> A: deletedUser
+    CG -->> API: deletedConsumer
+    API -->> A: deletedConsumer
 ```
 
 ## RF-08: Pesquisa de produtos através dos campos específicos das categorias
@@ -398,7 +416,7 @@ sequenceDiagram
     participant PG as ProductGateway
 
     A ->> API: GET /products/search?filter[category][name]=fruit
-    API ->> PG: search({category: {name: "fruit"}})
+    API ->> PG: find({category: {name: "fruit"}})
     PG -->> API: productSpec[]
     API -->> A: productSpec[]
 ```
@@ -418,7 +436,7 @@ sequenceDiagram
     API ->> CG: get(consumerId)
     CG -->> API: consumer
 
-    API ->> OG: getOrders(consumer)
+    API ->> OG: findFromConsumer(consumer)
     OG -->> API: order[]
     API -->> A: order[]
 ```
@@ -468,39 +486,42 @@ A especificação da API seria um `POST` a `/consumers/{consumerId}/orders` com 
 sequenceDiagram
     actor A as Alice
     participant API
-    participant CG as ConsumerGateway
     participant CaG as CartGateway
     participant OF as OrderFactory
-    participant OG as OrderGateway
     participant O as Order
     participant C as Cart
-    participant PPG as ProducerProductGateway
+    participant OG as OrderGateway
+    participant CIG as CartItemGateway
+    participant OIF as OrderItemFactory
     participant OI as OrderItem
     participant OIG as OrderItemGateway
 
     A ->> API: POST /consumers/{consumerId}/orders
 
-    API ->> CG: get(consumerId)
-    CG -->> API: consumer
-
-    API ->> CaG: getByConsumer(consumer)
+    API ->> CaG: get(consumerId)
+    activate C
     CaG -->> API: cart
 
     API ->> OF: createFromCart(cart)
     OF ->> O: new()
 
-    OF ->> C: getProducts()
-    C ->> PPG: findFromCart(cart)
-    PPG -->> C: product[]
-    C -->> OF: product[]
+    OF ->> CIG: findFromCart(cart)
+    CIG -->> OF: cartItem[]
+    deactivate C
 
-    loop for each product
-        OF ->> OI: new(order, product)
+    loop for each cartItem.product
+        OF ->> OIF: create(order, product)
+        OIF ->> OI: new(order, product)
+        OI -->> OIF: orderItem
+        OIF ->> OIG: insert(orderItem)
+        OIG -->> OIF: insertedOrderItem
+
         OF ->> O: addItem(orderItem)
-        OF ->> OIG: save(orderItem)
+        O -->> OF: addedOrderItem
     end
 
-    OF ->> OG: save(order)
+    OF ->> OG: insert(order)
+    OG -->> OF: insertedOrder
     OF -->> API: order
     API -->> A: order
 ```
@@ -543,7 +564,7 @@ sequenceDiagram
     Note right of A: Fill payment details and submit to external service
 
     S ->> API: POST /payments/webhook
-    API ->> PG: handleWebhook()
+    API ->> PG: handleWebhookEvent()
     PG ->> OG: updateStatus(order, paid)
     OG -->> PG: order
     PG -->> API: order
@@ -592,7 +613,7 @@ sequenceDiagram
     API ->> O: cancel()
     O -->> API: order
 
-    API ->> OG: save(order)
+    API ->> OG: update(order)
     OG -->> API: updatedOrder
 
     alt Order paid
@@ -600,7 +621,7 @@ sequenceDiagram
         PG ->> S: refund(id)
         Note right of S: Stripe will notify us through webhook
         S ->> API: POST /payments/webhook
-        API ->> PG: handleWebhook()
+        API ->> PG: handleWebhookEvent()
         Note right of O: Notify subscribers. See RF-14
         PG ->> O: setStatus(refunded)
         O -->> PG: order
@@ -632,6 +653,7 @@ sequenceDiagram
     participant NF as NotificationFactory
     participant N as Notification
     participant NFG as NotificationGateway
+    %% TODO we need user
     participant U as User
     participant NMF as NotificationMessageFactory
     # SocketGateway is NOT a data table gateway. It is a facade to the socket server
@@ -644,7 +666,7 @@ sequenceDiagram
     activate SE
     SE -->> SEF: shipmentEvent
 
-    SEF ->> SEG: create(shipmentEvent)
+    SEF ->> SEG: insert(shipmentEvent)
     SEG -->> SEF: savedShipmentEvent
     SEF -->> S: savedShipmentEvent
     deactivate SE
@@ -657,7 +679,7 @@ sequenceDiagram
     activate N
     N -->> NF: notification
     
-    NF ->> NFG: create(notification)
+    NF ->> NFG: insert(notification)
     NFG -->> NF: savedNotification
     
     Note right of N: Deliver notifications
@@ -715,7 +737,7 @@ sequenceDiagram
     A ->> API: GET /consumers/{consumerId}/orders/export
 
     Note right of API: We fetch the orders, loading the order items and the products, the Producer, and payment details
-    API ->> OG: findOrderByConsumer(consumerId)
+    API ->> OG: findFromConsumer(consumerId)
     OG -->> API: order[]
 
     API -->> A: order[]
@@ -733,23 +755,23 @@ A criação de uma unidade de produção é feita através de um *endpoint* pró
 sequenceDiagram
     actor A as Alice
     participant API as API
-    participant UF as UnitFactory
-    participant U as Unit
-    participant UG as UnitGateway
+    participant PUF as ProductionUnitFactory
+    participant PU as ProductionUnit
+    participant PUG as ProductionUnitGateway
 
     A ->> API: POST /producers/{producerId}/units
 
-    API ->> UF: create(producer, {name, description, etc})
+    API ->> PUF: create(producer, {name, description, etc})
 
-    UF ->> U: new(producer, {name, description, etc})
-    activate U
-    U -->> UF: unit
+    PUF ->> PU: new(producer, {name, description, etc})
+    activate PU
+    PU -->> PUF: unit
 
-    UF ->> UG: create(unit)
-    UG -->> UF: savedUnit
-    deactivate U
+    PUF ->> PUG: insert(unit)
+    PUG -->> PUF: savedUnit
+    deactivate PU
 
-    UF -->> API: savedUnit
+    PUF -->> API: savedUnit
     API -->> A: savedUnit
 ```
 
@@ -762,21 +784,19 @@ sequenceDiagram
     actor A as Alice
     participant API as API
     participant UG as UnitGateway
-    participant U as Unit
+    participant PU as ProductionUnit
 
     A ->> API: PUT /producers/{producerId}/units/{unitId}
 
     API ->> UG: get(unitId)
-    activate U
+    activate PU
     UG -->> API: unit
 
     Note right of API: We update the unit with the new data
-    API ->> U: update({name, description, etc})
-    U -->> API: updatedUnit
 
     API ->> UG: update(updatedUnit)
     UG -->> API: savedUnit
-    deactivate U
+    deactivate PU
 
     API -->> A: savedUnit
 ```
@@ -789,12 +809,12 @@ A remoção de uma unidade de produção é feita através de um *endpoint* pró
 sequenceDiagram
     actor A as Alice
     participant API as API
-    participant UG as UnitGateway
+    participant PUG as ProductionUnitGateway
 
     A ->> API: DELETE /producers/{producerId}/units/{unitId}
 
-    API ->> UG: delete(unitId)
-    UG -->> API: deletedUnit
+    API ->> PUG: delete(unitId)
+    PUG -->> API: deletedUnit
 
     API -->> A: deletedUnit
 ```
@@ -823,7 +843,7 @@ sequenceDiagram
     activate P
     P -->> PF: product
 
-    PF ->> PG: create(product)
+    PF ->> PG: insert(product)
     PG -->> PF: savedProduct
     deactivate P
 
@@ -855,7 +875,7 @@ sequenceDiagram
     API ->> P: update({name, description, etc})
     
     alt price is changed
-        P ->> PPF: createPrice(product, {price})
+        P ->> PPF: create(product, {price})
         PPF ->> PP: new({product, currentPrice})
         activate PP
         PP -->> PPF: productPrice
@@ -903,29 +923,29 @@ Para ligar um produto a uma unidade de produção é necessário que ambos tenha
 sequenceDiagram
     actor A as Alice
     participant API as API
-    participant UG as UnitGateway
-    participant U as Unit
+    participant PUG as ProductionUnitGateway
+    participant PU as ProductionUnit
     participant PG as ProductGateway
     
     A ->> API: PUT /producers/{producerId}/units/{unitId}/products/{productId}
 
-    API ->> UG: get(unitId)
-    activate U
-    UG -->> API: unit
+    API ->> PUG: get(unitId)
+    activate PU
+    PUG -->> API: unit
 
     API ->> PG: get(productId)
     PG -->> API: product
 
     Note right of API: We add the product to the unit
-    API ->> U: addProduct(product)
-    U -->> API: updatedUnit
+    API ->> PU: addProduct(product)
+    PU -->> API: unit
     
-    API ->> UG: update(updatedUnit)
-    UG -->> API: savedUnit
+    API ->> PUG: update(updatedUnit)
+    PUG -->> API: updatedUnit
 
-    deactivate U
+    deactivate PU
 
-    API -->> A: savedUnit
+    API -->> A: updatedUnit
 ```
 
 ## RF-20: Visualização de unidade de produção e dos seus produtos
@@ -959,7 +979,8 @@ De forma a obter a coleção de produtos da unidade de produção, efetua-se `GE
 sequenceDiagram
     actor A as Alice
     participant API as API
-    participant UG as UnitGateway
+    participant UG as ProductionUnitGateway
+    participant PrPG as ProducerProductGateway
     
     A ->> API: GET /producers/{producerId}/units/{unitId}/products
 
@@ -967,13 +988,15 @@ sequenceDiagram
     UG -->> API: unit
 
     Note right of API: We get the products from the unit
-    API ->> U: getProducts()
-    U -->> API: products
+    API ->> PrPG: findFromProductionUnit()
+    PrPG -->> API: products
 
     API -->> A: products
 ```
 
 ## RF-21: Criação, edição, e remoção de veículo de transporte de produtos
+
+<!-- TODO perguntar se é assim ou diretamente na unidade de produção -->
 
 Bastante semelhante a [RF-18](#rf-18-criação-gestão-e-remoção-de-unidade-de-produção).
 
@@ -999,7 +1022,7 @@ sequenceDiagram
     activate C
     C -->> CF: carrier
 
-    CF ->> CG: create(carrier)
+    CF ->> CG: insert(carrier)
     CG -->> CF: savedCarrier
     deactivate C
     CF -->> API: savedCarrier
@@ -1014,8 +1037,8 @@ De forma semelhante ao [RF-18](#rf-18-criação-gestão-e-remoção-de-unidade-d
 ```mermaid
 sequenceDiagram
     actor A as Alice
+    participant API
     participant CG as CarrierGateway
-    participant C as Carrier
 
     A ->> API: PUT /producers/{producerId}/carriers/{carrierId}
 
@@ -1066,7 +1089,6 @@ sequenceDiagram
     participant API as API
     participant CG as ConsumerGateway
     participant OG as OrderGateway
-    participant O as Order
 
     A ->> API: GET /consumers/{consumerId}/orders/{orderId}
 
