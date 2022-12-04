@@ -1,11 +1,11 @@
 # TODO
-#  components (schemas) that are missing
 #  fill with examples
 #  show created and updated dates?
-#  allow carrier to create a new shipment
+#  allow carrier to create a new shipment (?????? n me lembro pq)
 #  shipment details
 #  figure out if we'll use PUT or PATCH for updating resources
-#  /products should be Product or ProductSpec? Shouldn't be both because that's confusing
+#  use a better way to document errors?
+#  use what was learnt from sequence diagrams
 openapi: '3.0.2'
 info:
   title: OLANOME REST API
@@ -13,7 +13,6 @@ info:
   termsOfService: http://swagger.io/terms/
   contact:
     email: api@OLANOME.pt
-  # TODO rever licença
   license:
     name: Apache 2.0
     url: http://www.apache.org/licenses/LICENSE-2.0.html
@@ -25,12 +24,13 @@ paths:
   /auth/login:
     post:
       summary: Authenticate a user
-      description: Exchange credentials for a JWT token to be used in subsequent requests
+      description: Exchange a Firebase token for a JWT access token to be used in subsequent requests
       operationId: login
       tags:
         - auth
+      security:
+        - firebase: []
       requestBody:
-        description: Credentials to be used to authenticate the user
         required: true
         content:
           application/json:
@@ -66,7 +66,6 @@ paths:
         - $ref: '#/components/parameters/page'
         - $ref: '#/components/parameters/pageSize'
         - $ref: '#/components/parameters/sort'
-        # TODO filters? or should be a separate endpoint?
       responses:
         '200':
           description: The list of products
@@ -77,11 +76,11 @@ paths:
                 items:
                   $ref: '#/components/schemas/GetProductsResponse'
     post:
+      # TODO who has permissions to create a product?
       security:
         - bearerAuth: []
-      # TODO who has permissions to create a product?
-      summary: Create a product specification
-      description: Create a product specification.
+      summary: Create product specifications
+      description: Create product specifications.
       operationId: createProductSpec
       tags:
         - products
@@ -91,16 +90,16 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateProductsSpecRequest'
+              $ref: '#/components/schemas/CreateProductSpecsRequest'
       responses:
         '201':
-          description: Products specification created. Returns the created products specifications
+          description: Product specifications created. Returns the created product specifications
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/CreateProductsSpecResponse'
+                  $ref: '#/components/schemas/CreateProductSpecsResponse'
         '400':
           description: Bad Request
           content:
@@ -114,7 +113,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
-          description: Forbidden. The user does not have permission to create products
+          description: Forbidden. The user does not have permission to create product specifications
           content:
             application/json:
               schema:
@@ -134,7 +133,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ProductSpec'
+                $ref: '#/components/schemas/GetProductSpecResponse'
         '404':
           description: Product specification not found
           content:
@@ -142,6 +141,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
     put:
+      security:
+        - bearerAuth: []
       summary: Update a product specification
       description: Update a product specification. Only the fields that are present in the request body will be updated.
       operationId: updateProductSpec
@@ -153,14 +154,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ProductSpec'
+              $ref: '#/components/schemas/UpdateProductSpecRequest'
       responses:
         '200':
           description: The updated product specification
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ProductSpec'
+                $ref: '#/components/schemas/UpdateProductSpecResponse'
         '204':
           description: The product was not updated
         '400':
@@ -183,7 +184,13 @@ paths:
                 $ref: '#/components/schemas/Error'
         '404':
           description: Product specification not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     delete:
+      security:
+        - bearerAuth: []
       summary: Delete a product specification
       description: Delete a product specification
       operationId: deleteProductSpec
@@ -206,6 +213,10 @@ paths:
                 $ref: '#/components/schemas/Error'
         '404':
           description: Product specification not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /products/{productSpecId}/categories:
     parameters:
       - $ref: '#/components/parameters/productSpecId'
@@ -244,7 +255,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Category'
+                $ref: '#/components/schemas/GetProductSpecCategoryResponse'
         '404':
           description: Product specification or category not found
           # TODO would be nice to have an enum that lists all possible errors
@@ -254,6 +265,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
     put:
+      security:
+        - bearerAuth: []
       summary: Add a category to a product specification
       description: Add a category to a product specification
       operationId: addProductSpecCategory
@@ -265,376 +278,203 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Category'
-        '204':
-          description: The category was already on the product specification
-        '400':
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/AddProductSpecCategoryResponse'
         '401':
-          description: Unauthorized
+          description: Unauthorized. The user is not authenticated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
-          description: Forbidden
+          description: Forbidden. The user does not have permission to add categories to product specifications
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '404':
-          description: Not Found
-        '500':
-          description: Internal Server Error
+          description: Not Found. The product specification or category was not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: The category was already on the product specification
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
     delete:
-      summary: Remove a category from a product
-      description: Remove a category from a product
+      security:
+        - bearerAuth: []
+      summary: Remove a category from a product specification
+      description: Remove a category from a product specification
       operationId: removeProductCategory
       tags:
         - products
-      parameters:
-        - name: productId
-          in: path
-          description: Product ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: categoryId
-          in: path
-          description: Category ID
-          required: true
-          schema:
-            type: integer
-            format: int64
       responses:
         '204':
-          description: No Content
-        '400':
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          description: The category was removed from the product specification
         '401':
-          description: Unauthorized
+          description: Unauthorized. The user is not authenticated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
-          description: Forbidden
+          description: Forbidden. The user does not have permission to remove categories from product specifications
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '404':
-          description: Not Found
+          description: Not Found. The product specification or category was not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal Server Error
+        '409':
+          description: The category was not on the product specification
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-  /products/{productId}/categories/{categoryId}/fields:
+  /products/{productSpecId}/categories/{categoryId}/fields:
+    parameters:
+      - $ref: '#/components/parameters/productSpecId'
+      - $ref: '#/components/parameters/categoryId'
     get:
-      summary: Get fields of a category of a product
-      description: Get fields of a category of a product
+      summary: Get fields of a category of a product specification
+      description: Get fields of a category of a product specification
       operationId: getProductCategoryFields
       tags:
         - products
-      parameters:
-        - name: productId
-          in: path
-          description: Product ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: categoryId
-          in: path
-          description: Category ID
-          required: true
-          schema:
-            type: integer
-            format: int64
       responses:
         '200':
-          description: OK
+          description: The product specification category's fields
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Field'
-                  # TODO add field values to this endpoint
-        '400':
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/GetProductSpecCategoryFieldsResponse'
+                # TODO add field values to this endpoint
         '404':
-          description: Not Found
+          description: Not Found. The product specification or category was not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal Server Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-  /products/{productId}/categories/{categoryId}/fields/{fieldId}:
+  /products/{productSpecId}/categories/{categoryId}/fields/{fieldId}:
+    parameters:
+      - $ref: '#/components/parameters/productSpecId'
+      - $ref: '#/components/parameters/categoryId'
+      - $ref: '#/components/parameters/fieldId'
     get:
-      summary: Get a field of a category of a product
-      description: Get a field of a category of a product
+      summary: Get a field of a category of a product specification
+      description: Get a field of a category of a product specification
       operationId: getProductCategoryField
       tags:
         - products
-      parameters:
-        - name: productId
-          in: path
-          description: Product ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: categoryId
-          in: path
-          description: Category ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: fieldId
-          in: path
-          description: Field ID
-          required: true
-          schema:
-            type: integer
-            format: int64
       responses:
         '200':
-          description: OK
+          description: The product specification category's field
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Field'
+                $ref: '#/components/schemas/GetProductSpecCategoryFieldResponse'
                 # TODO add field value to this endpoint
-        '400':
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
         '404':
-          description: Not Found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal Server Error
+          description: Not Found. The product specification, category, or field was not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
     put:
-      summary: Add a field to a category of a product
-      description: Add a field to a category of a product
+      security:
+        - bearerAuth: []
+      summary: Add a field to a category of a product specification
+      description: Add a field to a category of a product specification
       operationId: addProductCategoryField
       tags:
         - products
-      parameters:
-        - name: productId
-          in: path
-          description: Product ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: categoryId
-          in: path
-          description: Category ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: fieldId
-          in: path
-          description: Field ID
-          required: true
-          schema:
-            type: integer
-            format: int
       responses:
         '201':
           description: The field was added to the category of the product
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Field'
+                $ref: '#/components/schemas/AddProductSpecCategoryFieldResponse'
                 # TODO add field value to this endpoint
-        '204':
-          description: The field was already on the category of the product
-        '400':
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
         '401':
-          description: Unauthorized
+          description: Unauthorized. The user is not authenticated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
-          description: Forbidden
+          description: Forbidden. The user does not have permission to add fields to categories of product specifications
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '404':
-          description: Not Found
+          description: Not Found. The product specification, category, or field was not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal Server Error
+        '409':
+          description: The field was already on the category of the product specification
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
     delete:
-      summary: Remove a field from a category of a product
-      description: Remove a field from a category of a product
+      security:
+        - bearerAuth: []
+      summary: Remove a field from a category of a product specification
+      description: Remove a field from a category of a product specification
       operationId: removeProductCategoryField
       tags:
         - products
-      parameters:
-        - name: productId
-          in: path
-          description: Product ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: categoryId
-          in: path
-          description: Category ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: fieldId
-          in: path
-          description: Field ID
-          required: true
-          schema:
-            type: integer
-            format: int
       responses:
         '204':
           description: The field was removed from the category of the product
-        '400':
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
         '401':
-          description: Unauthorized
+          description: Unauthorized. The user is not authenticated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
-          description: Forbidden
+          description: Forbidden. The user does not have permission to remove fields from categories of product specifications
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '404':
-          description: Not Found
+          description: Not Found. The product specification, category, or field was not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal Server Error
+        '409':
+          description: The field was not on the category of the product specification
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-  /products/{productId}/categories/{categoryId}/fields/{fieldId}/value:
+  /products/{productSpecId}/categories/{categoryId}/fields/{fieldId}/value:
+    parameters:
+      - $ref: '#/components/parameters/productSpecId'
+      - $ref: '#/components/parameters/categoryId'
+      - $ref: '#/components/parameters/fieldId'
     put:
-      summary: Set the value of a field of a category of a product
-      description: Set the value of a field of a category of a product
+      security:
+        - bearerAuth: []
+      summary: Set the value of a field of a category of a product specification
+      description: Set the value of a field of a category of a product specification
       operationId: setProductCategoryFieldValue
       tags:
         - products
-      parameters:
-        - name: productId
-          in: path
-          description: Product ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: categoryId
-          in: path
-          description: Category ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: fieldId
-          in: path
-          description: Field ID
-          required: true
-          schema:
-            type: integer
-            format: int
       requestBody:
         description: The value of the field
         required: true
@@ -644,101 +484,69 @@ paths:
               type: string
       responses:
         '201':
-          description: The value of the field was set
+          description: The field value was set
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Field'
+                $ref: '#/components/schemas/SetProductSpecCategoryFieldValueResponse'
                 # TODO add field value to this endpoint
-        '204':
-          description: The value of the field was equal to the value sent
         '400':
-          description: Bad Request
+          description: Bad Request. The field value was invalid
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '401':
-          description: Unauthorized
+          description: Unauthorized. The user is not authenticated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
-          description: Forbidden
+          description: Forbidden. The user does not have permission to set field values of categories of product specifications
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '404':
-          description: Not Found
+          description: Not Found. The product specification, category, or field was not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal Server Error
+        '409':
+          description: The field value was already set
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
   /consumers:
     get:
-      summary: Get all Consumers
-      description: Get all Consumers
+      security:
+        - bearerAuth: []
+      summary: Get all consumers
+      description: Get all consumers
       operationId: getConsumers
       tags:
         - consumers
       parameters:
-        - name: page
-          in: query
-          description: Page number
-          required: false
-          schema:
-            type: integer
-            format: int32
-        - name: limit
-          in: query
-          description: Number of items per page
-          required: false
-          schema:
-            type: integer
-            format: int32
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/pageSize'
       responses:
         '200':
-          description: OK
+          description: The list of consumers
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Consumer'
-        '400':
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/GetConsumersResponse'
         '401':
-          description: Unauthorized
+          description: Unauthorized. The user is not authenticated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '404':
-          description: Not Found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal Server Error
+          description: Forbidden. The user does not have permission to get consumers
           content:
             application/json:
               schema:
@@ -750,717 +558,534 @@ paths:
       tags:
         - consumers
       requestBody:
-        description: Consumer object that needs to be added
+        description: The consumer to create
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Consumer'
+              $ref: '#/components/schemas/CreateConsumerRequest'
       responses:
         '201':
-          description: Created
+          description: The consumer was created
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Consumer'
+                $ref: '#/components/schemas/CreateConsumerResponse'
         '400':
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden
+          description: Bad Request. The consumer was invalid
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
   /consumers/{consumerId}:
+    parameters:
+      - $ref: '#/components/parameters/consumerId'
     get:
+      security:
+        - bearerAuth: []
       summary: Get a consumer
       description: Get a consumer
       operationId: getConsumer
       tags:
         - consumers
-      parameters:
-        - name: consumerId
-          in: path
-          description: Consumer ID
-          required: true
-          schema:
-            type: integer
-            format: int64
       responses:
         '200':
-          description: OK
+          description: The consumer
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Consumer'
-        '400':
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/GetConsumerResponse'
         '401':
-          description: Unauthorized
+          description: Unauthorized. The user is not authenticated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
-          description: Forbidden
+          description: Forbidden. The user does not have permission to get a consumer
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '404':
-          description: Not Found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal Server Error
+          description: Not Found. The consumer was not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
     put:
+      security:
+        - bearerAuth: []
       summary: Update a consumer
       description: Update a consumer
       operationId: updateConsumer
       tags:
         - consumers
-      parameters:
-        - name: consumerId
-          in: path
-          description: Consumer ID
-          required: true
-          schema:
-            type: integer
-            format: int64
       requestBody:
-        description: Consumer object that needs to be updated
+        description: The consumer to update
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Consumer'
+              $ref: '#/components/schemas/UpdateConsumerRequest'
       responses:
         '200':
-          description: OK
+          description: The consumer was updated
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Consumer'
+                $ref: '#/components/schemas/UpdateConsumerResponse'
         '400':
-          description: Bad Request
+          description: Bad Request. The consumer was invalid
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '401':
-          description: Unauthorized
+          description: Unauthorized. The user is not authenticated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
-          description: Forbidden
+          description: Forbidden. The user does not have permission to update a consumer
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '404':
-          description: Not Found
+          description: Not Found. The consumer was not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     delete:
+      # TODO there should be a confirmation endpoint
+      security:
+        - bearerAuth: []
       summary: Delete a consumer
       description: Delete a consumer
       operationId: deleteConsumer
       tags:
         - consumers
-      parameters:
-        - name: consumerId
-          in: path
-          description: Consumer ID
-          required: true
-          schema:
-            type: integer
-            format: int64
       responses:
         '204':
-          description: No Content
-        '400':
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          description: The consumer was deleted
         '401':
-          description: Unauthorized
+          description: Unauthorized. The user is not authenticated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
-          description: Forbidden
+          description: Forbidden. The user does not have permission to delete a consumer
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '404':
-          description: Not Found
-        '500':
-          description: Internal Server Error
+          description: Not Found. The consumer was not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
   /consumers/{consumerId}/addresses:
+    parameters:
+      - $ref: '#/components/parameters/consumerId'
     get:
+      security:
+        - bearerAuth: []
       summary: Get all addresses of a consumer
       description: Get all addresses of a consumer
       operationId: getConsumerAddresses
       tags:
         - consumers
       parameters:
-        - name: consumerId
-          in: path
-          description: Consumer ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: page
-          in: query
-          description: Page number
-          required: false
-          schema:
-            type: integer
-            format: int32
-        - name: limit
-          in: query
-          description: Number of items per page
-          required: false
-          schema:
-            type: integer
-            format: int32
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/pageSize'
       responses:
         '200':
-          description: OK
+          description: The list of addresses
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Address'
-        '400':
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/GetConsumerAddressesResponse'
         '401':
-          description: Unauthorized
+          description: Unauthorized. The user is not authenticated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
-          description: Forbidden
+          description: Forbidden. The user does not have permission to get addresses of a consumer
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '404':
-          description: Not Found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal Server Error
+          description: Not Found. The consumer was not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
     post:
+      security:
+        - bearerAuth: []
       summary: Create an address for a consumer
       description: Create an address for a consumer
       operationId: createConsumerAddress
       tags:
         - consumers
-      parameters:
-        - name: consumerId
-          in: path
-          description: Consumer ID
-          required: true
-          schema:
-            type: integer
-            format: int64
       requestBody:
-        description: Address object that needs to be added
+        description: The address to create
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Address'
+              $ref: '#/components/schemas/CreateConsumerAddressRequest'
       responses:
         '201':
-          description: Created
+          description: The address was created
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Address'
+                $ref: '#/components/schemas/CreateConsumerAddressResponse'
+        '400':
+          description: Bad Request. The address was invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized. The user is not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden. The user does not have permission to create an address for a consumer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not Found. The consumer was not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /consumers/{consumerId}/addresses/{addressId}:
+    parameters:
+      - $ref: '#/components/parameters/consumerId'
+      - $ref: '#/components/parameters/addressId'
     get:
+      security:
+        - bearerAuth: []
       summary: Get an address of a consumer
       description: Get an address of a consumer
       operationId: getConsumerAddress
       tags:
         - consumers
-      parameters:
-        - name: consumerId
-          in: path
-          description: Consumer ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: addressId
-          in: path
-          description: Address ID
-          required: true
-          schema:
-            type: integer
-            format: int64
       responses:
         '200':
-          description: OK
+          description: The address
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Address'
-        '400':
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/GetConsumerAddressResponse'
         '401':
-          description: Unauthorized
+          description: Unauthorized. The user is not authenticated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
-          description: Forbidden
+          description: Forbidden. The user does not have permission to get an address of a consumer
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '404':
-          description: Not Found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal Server Error
+          description: Not Found. The consumer or address was not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
     put:
+      security:
+        - bearerAuth: []
       summary: Update an address of a consumer
       description: Update an address of a consumer
       operationId: updateConsumerAddress
       tags:
         - consumers
-      parameters:
-        - name: consumerId
-          in: path
-          description: Consumer ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: addressId
-          in: path
-          description: Address ID
-          required: true
-          schema:
-            type: integer
-            format: int64
       requestBody:
-        description: Address object that needs to be updated
+        description: The address to update
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Address'
+              $ref: '#/components/schemas/UpdateConsumerAddressRequest'
       responses:
         '200':
-          description: OK
+          description: The address was updated
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Address'
+                $ref: '#/components/schemas/UpdateConsumerAddressResponse'
         '400':
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-# TODO check on what's exposed
-    delete:
-      summary: Delete an address of a consumer
-      description: Delete an address of a consumer
-      operationId: deleteConsumerAddress
-      tags:
-        - consumers
-      parameters:
-        - name: consumerId
-          in: path
-          description: Consumer ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: addressId
-          in: path
-          description: Address ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-      responses:
-        '204':
-          description: No Content
-        '400':
-          description: Bad Request
+          description: Bad Request. The address was invalid
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '401':
-          description: Unauthorized
+          description: Unauthorized. The user is not authenticated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
-          description: Forbidden
+          description: Forbidden. The user does not have permission to update an address of a consumer
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '404':
-          description: Not Found
+          description: Not Found. The consumer or address was not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal Server Error
+    # TODO check on what's exposed
+    delete:
+      security:
+        - bearerAuth: []
+      summary: Delete an address of a consumer
+      description: Delete an address of a consumer
+      operationId: deleteConsumerAddress
+      tags:
+        - consumers
+      responses:
+        '204':
+          description: The address was deleted
+        '401':
+          description: Unauthorized. The user is not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden. The user does not have permission to delete an address of a consumer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not Found. The consumer or address was not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
   /consumers/{consumerId}/orders:
+    parameters:
+      - $ref: '#/components/parameters/consumerId'
     get:
+      security:
+        - bearerAuth: []
       summary: Get all orders of a consumer
       description: Get all orders of a consumer
       operationId: getConsumerOrders
       tags:
         - consumers
       parameters:
-        - name: consumerId
-          in: path
-          description: Consumer ID
-          required: true
-          schema:
-            type: integer
-            format: int64
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/pageSize'
       responses:
         '200':
-          description: OK
+          description: The list of orders
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Order'
-        '400':
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/GetConsumerOrdersResponse'
         '401':
-          description: Unauthorized
+          description: Unauthorized. The user is not authenticated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
-          description: Forbidden
+          description: Forbidden. The user does not have permission to get orders of a consumer
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '404':
-          description: Not Found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal Server Error
+          description: Not Found. The consumer was not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
     post:
+      security:
+        - bearerAuth: []
       summary: Create an order for a consumer
       description: Create an order for a consumer
       operationId: createConsumerOrder
       tags:
         - consumers
-      parameters:
-        - name: consumerId
-          in: path
-          description: Consumer ID
-          required: true
-          schema:
-            type: integer
-            format: int64
       requestBody:
-        description: Order object that needs to be added
+        description: The order to create
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Order'
+              $ref: '#/components/schemas/CreateConsumerOrderRequest'
       responses:
         '201':
-          description: Created
+          description: The order was created
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Order'
+                $ref: '#/components/schemas/CreateConsumerOrderResponse'
         '400':
-          description: Bad Request
+          description: Bad Request. The order was invalid
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '401':
-          description: Unauthorized
+          description: Unauthorized. The user is not authenticated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
-          description: Forbidden
+          description: Forbidden. The user does not have permission to create an order for a consumer
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '404':
-          description: Not Found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal Server Error
+          description: Not Found. The consumer was not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
   /consumers/{consumerId}/orders/{orderId}:
+    parameters:
+      - $ref: '#/components/parameters/consumerId'
+      - $ref: '#/components/parameters/orderId'
     get:
+      security:
+        - bearerAuth: []
       summary: Get an order of a consumer
       description: Get an order of a consumer
       operationId: getConsumerOrder
       tags:
         - consumers
-      parameters:
-        - name: consumerId
-          in: path
-          description: Consumer ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: orderId
-          in: path
-          description: Order ID
-          required: true
-          schema:
-            type: integer
-            format: int64
       responses:
         '200':
-          description: OK
+          description: The order
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Order'
+                $ref: '#/components/schemas/GetConsumerOrderResponse'
         '400':
-          description: Bad Request
+          description: Bad Request. The order was invalid
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '401':
-          description: Unauthorized
+          description: Unauthorized. The user is not authenticated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
-          description: Forbidden
+          description: Forbidden. The user does not have permission to get an order of a consumer
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '404':
-          description: Not Found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal Server Error
+          description: Not Found. The consumer or order was not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
     put:
+      security:
+        - bearerAuth: []
       summary: Update an order of a consumer
       description: Update an order of a consumer
       operationId: updateConsumerOrder
       tags:
         - consumers
-      parameters:
-        - name: consumerId
-          in: path
-          description: Consumer ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: orderId
-          in: path
-          description: Order ID
-          required: true
-          schema:
-            type: integer
-            format: int64
       requestBody:
-        description: Order object that needs to be updated
+        description: The order to update
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Order'
+              $ref: '#/components/schemas/UpdateConsumerOrderRequest'
       responses:
         '200':
-          description: OK
+          description: The order was updated
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Order'
+                $ref: '#/components/schemas/UpdateConsumerOrderResponse'
         '400':
-          description: Bad Request
+          description: Bad Request. The order was invalid
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '401':
-          description: Unauthorized
+          description: Unauthorized. The user is not authenticated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
-          description: Forbidden
+          description: Forbidden. The user does not have permission to update an order of a consumer
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '404':
-          description: Not Found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal Server Error
+          description: Not Found. The consumer or order was not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
     delete:
+      security:
+        - bearerAuth: []
       summary: Delete an order of a consumer
       description: Delete an order of a consumer
       operationId: deleteConsumerOrder
       tags:
         - consumers
-      parameters:
-        - name: consumerId
-          in: path
-          description: Consumer ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: orderId
-          in: path
-          description: Order ID
-          required: true
-          schema:
-            type: integer
-            format: int64
       responses:
         '204':
-          description: No Content
-        '400':
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          description: The order was deleted
         '401':
-          description: Unauthorized
+          description: Unauthorized. The user is not authenticated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
-          description: Forbidden
+          description: Forbidden. The user does not have permission to delete an order of a consumer
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '404':
-          description: Not Found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal Server Error
+          description: Not Found. The consumer or order was not found
           content:
             application/json:
               schema:
@@ -1473,443 +1098,233 @@ paths:
       tags:
         - categories
       parameters:
-        - name: page
-          in: query
-          description: Page number
-          required: false
-          schema:
-            type: integer
-            format: int64
-        - name: limit
-          in: query
-          description: Number of items per page
-          required: false
-          schema:
-            type: integer
-            format: int64
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/pageSize'
       responses:
         '200':
-          description: OK
+          description: The categories
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Category'
-        '400':
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '404':
-          description: Not Found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal Server Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/GetCategoriesResponse'
     post:
+      security:
+        - bearerAuth: []
       summary: Create a category
       description: Create a category
       operationId: createCategory
       tags:
         - categories
       requestBody:
-        description: Category object that needs to be created
+        description: The category to create
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Category'
+              $ref: '#/components/schemas/CreateCategoryRequest'
       responses:
         '201':
-          description: Created
+          description: The category was created
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Category'
+                $ref: '#/components/schemas/CreateCategoryResponse'
         '400':
-          description: Bad Request
+          description: Bad Request. The category was invalid
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '401':
-          description: Unauthorized
+          description: Unauthorized. The user is not authenticated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
-          description: Forbidden
+          description: Forbidden. The user does not have permission to create a category
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
   /categories/{categoryId}:
+    parameters:
+      - $ref: '#/components/parameters/categoryId'
     get:
       summary: Get a category
       description: Get a category
       operationId: getCategory
       tags:
         - categories
-      parameters:
-        - name: categoryId
-          in: path
-          description: Category ID
-          required: true
-          schema:
-            type: integer
-            format: int64
       responses:
         '200':
-          description: OK
+          description: The category
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Category'
-        '400':
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/GetCategoryResponse'
         '404':
-          description: Not Found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal Server Error
+          description: Not Found. The category was not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
     put:
+      security:
+        - bearerAuth: []
       summary: Update a category
       description: Update a category
       operationId: updateCategory
       tags:
         - categories
-      parameters:
-        - name: categoryId
-          in: path
-          description: Category ID
-          required: true
-          schema:
-            type: integer
-            format: int64
       requestBody:
-        description: Category object that needs to be updated
+        description: The category to update
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Category'
+              $ref: '#/components/schemas/UpdateCategoryRequest'
       responses:
         '200':
-          description: OK
+          description: The category was updated
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Category'
+                $ref: '#/components/schemas/UpdateCategoryResponse'
         '400':
-          description: Bad Request
+          description: Bad Request. The category was invalid
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '401':
-          description: Unauthorized
+          description: Unauthorized. The user is not authenticated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
-          description: Forbidden
+          description: Forbidden. The user does not have permission to update a category
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '404':
-          description: Not Found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal Server Error
+          description: Not Found. The category was not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
     delete:
+      security:
+        - bearerAuth: []
       summary: Delete a category
       description: Delete a category
       operationId: deleteCategory
       tags:
         - categories
-      parameters:
-        - name: categoryId
-          in: path
-          description: Category ID
-          required: true
-          schema:
-            type: integer
-            format: int64
       responses:
         '204':
-          description: No Content
-        '400':
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          description: The category was deleted
         '401':
-          description: Unauthorized
+          description: Unauthorized. The user is not authenticated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
-          description: Forbidden
+          description: Forbidden. The user does not have permission to delete a category
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '404':
-          description: Not Found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal Server Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-  /categories/{categoryId}/products:
-    # TODO this or /products?categoryId={categoryId} ?
-    get:
-      summary: Get products by category
-      description: Get products by category
-      operationId: getProductsByCategory
-      tags:
-        - categories
-      parameters:
-        - name: categoryId
-          in: path
-          description: Category ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Product'
-        '400':
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '404':
-          description: Not Found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal Server Error
+          description: Not Found. The category was not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
   /categories/{categoryId}/fields:
+    parameters:
+      - $ref: '#/components/parameters/categoryId'
     get:
+      security:
+        - bearerAuth: []
       summary: Get fields of a category
       description: Get fields of a category
       operationId: getFieldsOfCategory
       tags:
         - categories
-      parameters:
-        - name: categoryId
-          in: path
-          description: Category ID
-          required: true
-          schema:
-            type: integer
-            format: int64
       responses:
         '200':
-          description: OK
+          description: The fields of the category
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Field'
-        '400':
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/GetCategoryFieldsResponse'
         '401':
-          description: Unauthorized
+          description: Unauthorized. The user is not authenticated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
-          description: Forbidden
+          description: Forbidden. The user does not have permission to get fields of a category
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '404':
-          description: Not Found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal Server Error
+          description: Not Found. The category was not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
   /categories/{categoryId}/fields/{fieldId}:
+    parameters:
+      - $ref: '#/components/parameters/categoryId'
+      - $ref: '#/components/parameters/fieldId'
     get:
+      security:
+        - bearerAuth: []
       summary: Get a field of a category
       description: Get a field of a category
       operationId: getFieldOfCategory
       tags:
         - categories
-      parameters:
-        - name: categoryId
-          in: path
-          description: Category ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: fieldId
-          in: path
-          description: Field ID
-          required: true
-          schema:
-            type: integer
-            format: int64
       responses:
         '200':
-          description: OK
+          description: The field of the category
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Field'
-        '400':
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/GetCategoryFieldResponse'
         '401':
-          description: Unauthorized
+          description: Unauthorized. The user is not authenticated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
-          description: Forbidden
+          description: Forbidden. The user does not have permission to get a field of a category
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '404':
-          description: Not Found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal Server Error
+          description: Not Found. The category or field was not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
     put:
+      security:
+        - bearerAuth: []
       summary: Add a field to a category
       description: Add a field to a category
       operationId: addFieldToCategory
       tags:
         - categories
-      parameters:
-        - name: categoryId
-          in: path
-          description: Category ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: fieldId
-          in: path
-          description: Field ID
-          required: true
-          schema:
-            type: integer
-            format: int64
       # TODO body?
       responses:
         '201':
@@ -1917,288 +1332,210 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Field'
-        '204':
-          description: The field was already on the category
-        '400':
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/AddFieldToCategoryResponse'
         '401':
-          description: Unauthorized
+          description: Unauthorized. The user is not authenticated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
-          description: Forbidden
+          description: Forbidden. The user does not have permission to add a field to a category
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '404':
-          description: Not Found
+          description: Not Found. The category or field was not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal Server Error
+        '409':
+          description: Conflict. The field is already in the category
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+    # TODO delete?
   /fields:
     get:
+      security:
+        - bearerAuth: []
       summary: Get all fields
       description: Get all fields
       operationId: getFields
       tags:
         - fields
+      parameters:
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/pageSize'
       responses:
         '200':
-          description: OK
+          description: The fields
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Field'
-        '400':
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/GetFieldsResponse'
         '401':
-          description: Unauthorized
+          description: Unauthorized. The user is not authenticated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '404':
-          description: Not Found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal Server Error
+          description: Forbidden. The user does not have permission to get fields
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
     post:
+      security:
+        - bearerAuth: []
       summary: Create a field
       description: Create a field
       operationId: createField
       tags:
         - fields
       requestBody:
-        description: Field to create
+        description: The field to create
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Field'
+              $ref: '#/components/schemas/CreateFieldRequest'
       responses:
         '201':
           description: The field was created
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Field'
+                $ref: '#/components/schemas/CreateFieldResponse'
         '400':
-          description: Bad Request
+          description: Bad Request. The field is invalid
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '401':
-          description: Unauthorized
+          description: Unauthorized. The user is not authenticated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '404':
-          description: Not Found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal Server Error
+          description: Forbidden. The user does not have permission to create a field
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
   /fields/{fieldId}:
+    parameters:
+      - $ref: '#/components/parameters/fieldId'
     get:
+      security:
+        - bearerAuth: []
       summary: Get a field
       description: Get a field
       operationId: getField
       tags:
         - fields
-      parameters:
-        - name: fieldId
-          in: path
-          description: Field ID
-          required: true
-          schema:
-            type: integer
-            format: int64
       responses:
         '200':
-          description: OK
+          description: The field
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Field'
-        '400':
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/GetFieldResponse'
         '401':
-          description: Unauthorized
+          description: Unauthorized. The user is not authenticated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
-          description: Forbidden
+          description: Forbidden. The user does not have permission to get a field
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '404':
-          description: Not Found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal Server Error
+          description: Not Found. The field was not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
     put:
+      security:
+        - bearerAuth: []
       summary: Update a field
       description: Update a field
       operationId: updateField
       tags:
         - fields
-      parameters:
-        - name: fieldId
-          in: path
-          description: Field ID
-          required: true
-          schema:
-            type: integer
-            format: int64
       requestBody:
-        description: Field to update
+        description: The field to update
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Field'
+              $ref: '#/components/schemas/UpdateFieldRequest'
       responses:
         '200':
           description: The field was updated
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Field'
+                $ref: '#/components/schemas/UpdateFieldResponse'
         '400':
-          description: Bad Request
+          description: Bad Request. The field is invalid
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '401':
-          description: Unauthorized
+          description: Unauthorized. The user is not authenticated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
-          description: Forbidden
+          description: Forbidden. The user does not have permission to update a field
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '404':
-          description: Not Found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal Server Error
+          description: Not Found. The field was not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
     delete:
+      security:
+        - bearerAuth: []
       summary: Delete a field
       description: Delete a field
       operationId: deleteField
       tags:
         - fields
-      parameters:
-        - name: fieldId
-          in: path
-          description: Field ID
-          required: true
-          schema:
-            type: integer
-            format: int64
       responses:
         '204':
           description: The field was deleted
-        '400':
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
         '401':
-          description: Unauthorized
+          description: Unauthorized. The user is not authenticated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
-          description: Forbidden
+          description: Forbidden. The user does not have permission to delete a field
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '404':
-          description: Not Found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal Server Error
+          description: Not Found. The field was not found
           content:
             application/json:
               schema:
@@ -2211,59 +1548,15 @@ paths:
       tags:
         - producers
       parameters:
-        - name: page
-          in: query
-          description: Page number
-          required: false
-          schema:
-            type: integer
-            format: int64
-        - name: limit
-          in: query
-          description: Number of items per page
-          required: false
-          schema:
-            type: integer
-            format: int64
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/pageSize'
       responses:
         '200':
-          description: OK
+          description: The producers
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Producer'
-        '400':
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '404':
-          description: Not Found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal Server Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/GetProducersResponse'
     post:
       summary: Create a producer
       description: Create a producer
@@ -2271,201 +1564,140 @@ paths:
       tags:
         - producers
       requestBody:
-        description: Producer object that needs to be created
+        description: The producer to create
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Producer'
+              $ref: '#/components/schemas/CreateProducerRequest'
       responses:
         '201':
-          description: Created
+          description: The producer was created
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Producer'
+                $ref: '#/components/schemas/CreateProducerResponse'
         '400':
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal Server Error
+          description: Bad Request. The producer is invalid
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
   /producers/{producerId}:
+    parameters:
+      - $ref: '#/components/parameters/producerId'
     get:
+      security:
+        - bearerAuth: []
       summary: Get a producer
       description: Get a producer
       operationId: getProducer
       tags:
         - producers
-      parameters:
-        - name: producerId
-          in: path
-          description: Producer ID
-          required: true
-          schema:
-            type: integer
-            format: int64
       responses:
         '200':
-          description: OK
+          description: The producer
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Producer'
-        '400':
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/GetProducerResponse'
         '401':
-          description: Unauthorized
+          description: Unauthorized. The user is not authenticated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
-          description: Forbidden
+          description: Forbidden. The user does not have permission to get a producer
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '404':
-          description: Not Found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal Server Error
+          description: Not Found. The producer was not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
     put:
+      security:
+        - bearerAuth: []
       summary: Update a producer
       description: Update a producer
       operationId: updateProducer
       tags:
         - producers
-      parameters:
-        - name: producerId
-          in: path
-          description: Producer ID
-          required: true
-          schema:
-            type: integer
-            format: int64
       requestBody:
-        description: Producer object that needs to be updated
+        description: The producer to update
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Producer'
+              $ref: '#/components/schemas/UpdateProducerRequest'
       responses:
         '200':
-          description: OK
+          description: The producer was updated
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Producer'
+                $ref: '#/components/schemas/UpdateProducerResponse'
         '400':
-          description: Bad Request
+          description: Bad Request. The producer is invalid
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '401':
-          description: Unauthorized
+          description: Unauthorized. The user is not authenticated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
-          description: Forbidden
+          description: Forbidden. The user does not have permission to update a producer
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '404':
-          description: Not Found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal Server Error
+          description: Not Found. The producer was not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
     delete:
+      # TODO needs an endpoint to verify deletion
+      security:
+        - bearerAuth: []
       summary: Delete a producer
       description: Delete a producer
       operationId: deleteProducer
       tags:
         - producers
-      parameters:
-        - name: producerId
-          in: path
-          description: Producer ID
-          required: true
-          schema:
-            type: integer
-            format: int64
       responses:
         '204':
-          description: No Content
-        '400':
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          description: The producer was deleted
         '401':
-          description: Unauthorized
+          description: Unauthorized. The user is not authenticated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
-          description: Forbidden
+          description: Forbidden. The user does not have permission to delete a producer
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '404':
-          description: Not Found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal Server Error
+          description: Not Found. The producer was not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
   /producers/{producerId}/products:
+    parameters:
+      - $ref: '#/components/parameters/producerId'
     get:
       summary: Get all products of a producer
       description: Get all products of a producer
@@ -2473,1239 +1705,713 @@ paths:
       tags:
         - producers
       parameters:
-        - name: producerId
-          in: path
-          description: Producer ID
-          required: true
-          schema:
-            type: integer
-            format: int64
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/pageSize'
       responses:
         '200':
-          description: OK
+          description: The products
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Product'
-        '400':
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/GetProducerProductsResponse'
         '404':
-          description: Not Found
+          description: Not Found. The producer was not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal Server Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-  /producers/{producerId}/products/{productId}:
+  /producers/{producerId}/products/{producerProductId}:
+    parameters:
+      - $ref: '#/components/parameters/producerId'
+      - $ref: '#/components/parameters/producerProductId'
     get:
       summary: Get a product of a producer
       description: Get a product of a producer
       operationId: getProductByProducer
       tags:
         - producers
-      parameters:
-        - name: producerId
-          in: path
-          description: Producer ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: productId
-          in: path
-          description: Product ID
-          required: true
-          schema:
-            type: integer
-            format: int64
       responses:
         '200':
-          description: OK
+          description: The product
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Product'
-        '400':
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/GetProducerProductResponse'
         '404':
-          description: Not Found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal Server Error
+          description: Not Found. The producer or product was not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
     put:
+      security:
+        - bearerAuth: []
       summary: Update a product of a producer
       description: Update a product of a producer
       operationId: updateProductByProducer
       tags:
         - producers
-      parameters:
-        - name: producerId
-          in: path
-          description: Producer ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: productId
-          in: path
-          description: Product ID
-          required: true
-          schema:
-            type: integer
-            format: int64
       requestBody:
-        description: Product object that needs to be updated
+        description: The product to update
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Product'
+              $ref: '#/components/schemas/UpdateProducerProductRequest'
       responses:
         '200':
-          description: OK
+          description: The product was updated
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Product'
+                $ref: '#/components/schemas/UpdateProducerProductResponse'
         '400':
-          description: Bad Request
+          description: Bad Request. The product is invalid
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '401':
-          description: Unauthorized
+          description: Unauthorized. The user is not authenticated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
-          description: Forbidden
+          description: Forbidden. The user does not have permission to update a product
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '404':
-          description: Not Found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal Server Error
+          description: Not Found. The producer or product was not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
     delete:
+      security:
+        - bearerAuth: []
       summary: Delete a product of a producer
       description: Delete a product of a producer
       operationId: deleteProductByProducer
       tags:
         - producers
-      parameters:
-        - name: producerId
-          in: path
-          description: Producer ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: productId
-          in: path
-          description: Product ID
-          required: true
-          schema:
-            type: integer
-            format: int64
       responses:
         '204':
-          description: No Content
-        '400':
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          description: The product was deleted
         '401':
-          description: Unauthorized
+          description: Unauthorized. The user is not authenticated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
-          description: Forbidden
+          description: Forbidden. The user does not have permission to delete a product
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '404':
-          description: Not Found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal Server Error
+          description: Not Found. The producer or product was not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
   /producers/{producerId}/units/{unitId}/products:
+    parameters:
+      - $ref: '#/components/parameters/producerId'
+      - $ref: '#/components/parameters/productionUnitId'
     get:
-      summary: Get all products of a unit
-      description: Get all products of a unit
+      security:
+        - bearerAuth: []
+      summary: Get all products of a production unit
+      description: Get all products of a production unit
       operationId: getProductsByUnit
       tags:
         - producers
       parameters:
-        - name: producerId
-          in: path
-          description: Producer ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: unitId
-          in: path
-          description: Unit ID
-          required: true
-          schema:
-            type: integer
-            format: int64
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/pageSize'
       responses:
         '200':
-          description: OK
+          description: The products
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/Product'
-        '400':
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+                  $ref: '#/components/schemas/GetProductionUnitProductResponse'
         '401':
-          description: Unauthorized
+          description: Unauthorized. The user is not authenticated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
-          description: Forbidden
+          description: Forbidden. The user does not have permission to get products
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '404':
-          description: Not Found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal Server Error
+          description: Not Found. The producer or production unit was not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
   /producers/{producerId}/units:
+    parameters:
+      - $ref: '#/components/parameters/producerId'
     get:
-      summary: Get all units of a producer
-      description: Get all units of a producer
+      #TODO should be secured?
+      summary: Get all production units of a producer
+      description: Get all production units of a producer
       operationId: getUnitsByProducer
       tags:
         - producers
       parameters:
-        - name: producerId
-          in: path
-          description: Producer ID
-          required: true
-          schema:
-            type: integer
-            format: int64
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/pageSize'
       responses:
         '200':
-          description: OK
+          description: The production units
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/ProductionUnit'
-        '400':
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/GetProductionUnitsResponse'
         '404':
-          description: Not Found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal Server Error
+          description: Not Found. The producer was not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
     post:
-      summary: Add a new unit to a producer
-      description: Add a new unit to a producer
-      operationId: addUnitByProducer
+      security:
+        - bearerAuth: []
+      summary: Add a new production unit to a producer
+      description: Add a new production unit to a producer
+      operationId: addUnitToProducer
       tags:
         - producers
-      parameters:
-        - name: producerId
-          in: path
-          description: Producer ID
-          required: true
-          schema:
-            type: integer
-            format: int64
       requestBody:
-        description: Unit object that needs to be added
+        description: The production unit to add
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ProductionUnit'
+              $ref: '#/components/schemas/AddProductionUnitRequest'
       responses:
         '201':
-          description: Created
+          description: The production unit was added
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ProductionUnit'
+                $ref: '#/components/schemas/AddProductionUnitResponse'
         '400':
-          description: Bad Request
+          description: Bad Request. The production unit is invalid
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '401':
-          description: Unauthorized
+          description: Unauthorized. The user is not authenticated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
-          description: Forbidden
+          description: Forbidden. The user does not have permission to add a production unit to a producer
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '404':
-          description: Not Found
+          description: Not Found. The producer was not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal Server Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-  /producers/{producerId}/units/{unitId}:
+  /producers/{producerId}/units/{productionUnitId}:
+    parameters:
+      - $ref: '#/components/parameters/producerId'
+      - $ref: '#/components/parameters/productionUnitId'
     get:
-      summary: Get a unit of a producer
-      description: Get a unit of a producer
+      #TODO should be secured?
+      summary: Get a production unit of a producer
+      description: Get a production unit of a producer
       operationId: getUnitByProducer
       tags:
         - producers
-      parameters:
-        - name: producerId
-          in: path
-          description: Producer ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: unitId
-          in: path
-          description: Unit ID
-          required: true
-          schema:
-            type: integer
-            format: int64
       responses:
         '200':
-          description: OK
+          description: The production unit
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ProductionUnit'
-        '400':
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/GetProductionUnitResponse'
         '404':
-          description: Not Found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal Server Error
+          description: Not Found. The producer or production unit was not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
     put:
-      summary: Update a unit of a producer
-      description: Update a unit of a producer
-      operationId: updateUnitByProducer
+      security:
+        - bearerAuth: []
+      summary: Update a production unit of a producer
+      description: Update a production unit of a producer
+      operationId: updateUnitOfProducer
       tags:
         - producers
-      parameters:
-        - name: producerId
-          in: path
-          description: Producer ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: unitId
-          in: path
-          description: Unit ID
-          required: true
-          schema:
-            type: integer
-            format: int64
       requestBody:
-        description: Unit object that needs to be updated
+        description: The production unit to update
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ProductionUnit'
+              $ref: '#/components/schemas/UpdateProductionUnitRequest'
       responses:
         '200':
-          description: OK
+          description: The production unit was updated
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ProductionUnit'
+                $ref: '#/components/schemas/UpdateProductionUnitResponse'
         '400':
-          description: Bad Request
+          description: Bad Request. The production unit is invalid
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '401':
-          description: Unauthorized
+          description: Unauthorized. The user is not authenticated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
-          description: Forbidden
+          description: Forbidden. The user does not have permission to update a production unit of a producer
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '404':
-          description: Not Found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal Server Error
+          description: Not Found. The producer or production unit was not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
     delete:
-      summary: Delete a unit of a producer
-      description: Delete a unit of a producer
+      security:
+        - bearerAuth: []
+      summary: Delete a production unit of a producer
+      description: Delete a production unit of a producer
       operationId: deleteUnitByProducer
       tags:
         - producers
-      parameters:
-        - name: producerId
-          in: path
-          description: Producer ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: unitId
-          in: path
-          description: Unit ID
-          required: true
-          schema:
-            type: integer
-            format: int64
       responses:
         '204':
-          description: No Content
-        '400':
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          description: The production unit was deleted
         '401':
-          description: Unauthorized
+          description: Unauthorized. The user is not authenticated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
-          description: Forbidden
+          description: Forbidden. The user does not have permission to delete a production unit of a producer
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '404':
-          description: Not Found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal Server Error
+          description: Not Found. The producer or production unit was not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
   /producers/{producerId}/units/{unitId}/carriers:
+    parameters:
+      - $ref: '#/components/parameters/producerId'
+      - $ref: '#/components/parameters/productionUnitId'
     get:
-      summary: Get all carriers of a unit
-      description: Get all carriers of a unit
+      security:
+        - bearerAuth: []
+      summary: Get all carriers of a production unit
+      description: Get all carriers of a production unit
       operationId: getCarriersByUnit
       tags:
         - producers
       parameters:
-        - name: producerId
-          in: path
-          description: Producer ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: unitId
-          in: path
-          description: Unit ID
-          required: true
-          schema:
-            type: integer
-            format: int64
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/pageSize'
       responses:
         '200':
-          description: OK
+          description: The carriers
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Carrier'
-        '400':
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/GetCarriersResponse'
         '401':
-          description: Unauthorized
+          description: Unauthorized. The user is not authenticated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
-          description: Forbidden
+          description: Forbidden. The user does not have permission to get carriers of a production unit
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '404':
-          description: Not Found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal Server Error
+          description: Not Found. The producer or production unit was not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
     post:
+      security:
+        - bearerAuth: []
       summary: Create a carrier for a unit
       description: Create a carrier for a unit
       operationId: createCarrierForUnit
       tags:
         - producers
-      parameters:
-        - name: producerId
-          in: path
-          description: Producer ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: unitId
-          in: path
-          description: Unit ID
-          required: true
-          schema:
-            type: integer
-            format: int64
       responses:
         '201':
-          description: Created
+          description: The carrier was created
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Carrier'
+                $ref: '#/components/schemas/CreateProductionUnitCarrierResponse'
         '400':
-          description: Bad Request
+          description: Bad Request. The carrier is invalid
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '401':
-          description: Unauthorized
+          description: Unauthorized. The user is not authenticated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
-          description: Forbidden
+          description: Forbidden. The user does not have permission to create a carrier for a production unit of a producer
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '404':
-          description: Not Found
+          description: Not Found. The producer or production unit was not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal Server Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-  /producers/{producerId}/units/{unitId}/carriers/{carrierId}:  
+  /producers/{producerId}/units/{unitId}/carriers/{carrierId}:
+    parameters:
+      - $ref: '#/components/parameters/producerId'
+      - $ref: '#/components/parameters/productionUnitId'
+      - $ref: '#/components/parameters/carrierId'
     get:
-      summary: Get a carrier of a unit
-      description: Get a carrier of a unit
+      security:
+        - bearerAuth: []
+      summary: Get a carrier of a production unit
+      description: Get a carrier of a production unit
       operationId: getCarrierByUnit
       tags:
         - producers
-      parameters:
-        - name: producerId
-          in: path
-          description: Producer ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: unitId
-          in: path
-          description: Unit ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: carrierId
-          in: path
-          description: Carrier ID
-          required: true
-          schema:
-            type: integer
-            format: int64
       responses:
         '200':
-          description: OK
+          description: The carrier
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Carrier'
-        '400':
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/GetProductionUnitCarrierResponse'
         '401':
-          description: Unauthorized
+          description: Unauthorized. The user is not authenticated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
-          description: Forbidden
+          description: Forbidden. The user does not have permission to get a carrier of a production unit
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '404':
-          description: Not Found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal Server Error
+          description: Not Found. The producer, production unit or carrier was not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
     put:
+      security:
+        - bearerAuth: []
       summary: Update a carrier
       description: Update a carrier
       operationId: updateCarrier
       tags:
         - producers
-      parameters:
-        - name: producerId
-          in: path
-          description: Producer ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: unitId
-          in: path
-          description: Unit ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: carrierId
-          in: path
-          description: Carrier ID
-          required: true
-          schema:
-            type: integer
-            format: int64
       responses:
         '200':
-          description: OK
+          description: The carrier was updated
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Carrier'
+                $ref: '#/components/schemas/UpdateProductionUnitCarrierResponse'
         '400':
-          description: Bad Request
+          description: Bad Request. The carrier is invalid
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '401':
-          description: Unauthorized
+          description: Unauthorized. The user is not authenticated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
-          description: Forbidden
+          description: Forbidden. The user does not have permission to update a carrier of a production unit of a producer
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '404':
-          description: Not Found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal Server Error
+          description: Not Found. The producer, production unit or carrier was not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
     delete:
+      security:
+        - bearerAuth: []
       summary: Delete a carrier
       description: Delete a carrier
       operationId: deleteCarrier
       tags:
         - producers
-      parameters:
-        - name: producerId
-          in: path
-          description: Producer ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: unitId
-          in: path
-          description: Unit ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: carrierId
-          in: path
-          description: Carrier ID
-          required: true
-          schema:
-            type: integer
-            format: int64
       responses:
         '204':
-          description: No Content
-        '400':
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          description: The carrier was deleted
         '401':
-          description: Unauthorized
+          description: Unauthorized. The user is not authenticated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
-          description: Forbidden
+          description: Forbidden. The user does not have permission to delete a carrier of a production unit of a producer
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '404':
-          description: Not Found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal Server Error
+          description: Not Found. The producer, production unit or carrier was not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
   /producers/{producerId}/units/{unitId}/carriers/{carrierId}/shipments:
+    #TODO do we have shipments on class diagram?
+    parameters:
+      - $ref: '#/components/parameters/producerId'
+      - $ref: '#/components/parameters/productionUnitId'
+      - $ref: '#/components/parameters/carrierId'
     get:
+      security:
+        - bearerAuth: []
       summary: Get all shipments for a carrier
       description: Get all shipments for a carrier
       operationId: getShipmentsByCarrier
       tags:
         - producers
       parameters:
-        - name: producerId
-          in: path
-          description: Producer ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: unitId
-          in: path
-          description: Unit ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: carrierId
-          in: path
-          description: Carrier ID
-          required: true
-          schema:
-            type: integer
-            format: int64
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/pageSize'
       responses:
         '200':
-          description: OK
+          description: The shipments
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/Shipment'
-        '400':
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+                  $ref: '#/components/schemas/GetShipmentResponse'
         '401':
-          description: Unauthorized
+          description: Unauthorized. The user is not authenticated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
-          description: Forbidden
+          description: Forbidden. The user does not have permission to get shipments of a carrier of a production unit of a producer
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '404':
-          description: Not Found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal Server Error
+          description: Not Found. The producer, production unit or carrier was not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
     post:
+      security:
+        - bearerAuth: []
       summary: Create a shipment for a carrier
       description: Create a shipment for a carrier
       operationId: createShipmentForCarrier
       tags:
         - producers
-      parameters:
-        - name: producerId
-          in: path
-          description: Producer ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: unitId
-          in: path
-          description: Unit ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: carrierId
-          in: path
-          description: Carrier ID
-          required: true
-          schema:
-            type: integer
-            format: int64
       responses:
         '201':
-          description: Created
+          description: The shipment was created
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Shipment'
+                $ref: '#/components/schemas/CreateShipmentResponse'
         '400':
-          description: Bad Request
+          description: Bad Request. The shipment is invalid
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '401':
-          description: Unauthorized
+          description: Unauthorized. The user is not authenticated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
-          description: Forbidden
+          description: Forbidden. The user does not have permission to create a shipment for a carrier of a production unit of a producer
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '404':
-          description: Not Found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal Server Error
+          description: Not Found. The producer, production unit or carrier was not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error' 
   /producers/{producerId}/units/{unitId}/carriers/{carrierId}/shipments/{shipmentId}:
+    parameters:
+      - $ref: '#/components/parameters/producerId'
+      - $ref: '#/components/parameters/productionUnitId'
+      - $ref: '#/components/parameters/carrierId'
+      - $ref: '#/components/parameters/shipmentId'
     get:
+      security:
+        - bearerAuth: []
       summary: Get a shipment of a carrier
       description: Get a shipment of a carrier
       operationId: getShipmentOfCarrier
       tags:
         - producers
-      parameters:
-        - name: producerId
-          in: path
-          description: Producer ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: unitId
-          in: path
-          description: Unit ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: carrierId
-          in: path
-          description: Carrier ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: shipmentId
-          in: path
-          description: Shipment ID
-          required: true
-          schema:
-            type: integer
-            format: int64
       responses:
         '200':
-          description: OK
+          description: The shipment
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Shipment'
-        '400':
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/GetShipmentResponse'
         '401':
-          description: Unauthorized
+          description: Unauthorized. The user is not authenticated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
-          description: Forbidden
+          description: Forbidden. The user does not have permission to get a shipment of a carrier of a production unit of a producer
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '404':
-          description: Not Found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal Server Error
+          description: Not Found. The producer, production unit, carrier or shipment was not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
     put:
+      security:
+        - bearerAuth: []
       summary: Update a shipment of a carrier
       description: Update a shipment of a carrier
       operationId: updateShipmentOfCarrier
       tags:
         - producers
-      parameters:
-        - name: producerId
-          in: path
-          description: Producer ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: unitId
-          in: path
-          description: Unit ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: carrierId
-          in: path
-          description: Carrier ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: shipmentId
-          in: path
-          description: Shipment ID
-          required: true
-          schema:
-            type: integer
-            format: int64
       responses:
         '201':
-          description: The updated shipment
+          description: The shipment was updated
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Shipment'
+                $ref: '#/components/schemas/GetShipmentResponse'
         '400':
-          description: Bad Request
+          description: Bad Request. The shipment is invalid
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '401':
-          description: Unauthorized
+          description: Unauthorized. The user is not authenticated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
-          description: Forbidden
+          description: Forbidden. The user does not have permission to update a shipment of a carrier of a production unit of a producer
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '404':
-          description: Not Found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal Server Error
+          description: Not Found. The producer, production unit, carrier or shipment was not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
     delete:
+      security:
+        - bearerAuth: []
       summary: Delete a shipment of a carrier
       description: Delete a shipment of a carrier
       operationId: deleteShipmentOfCarrier
       tags:
         - producers
-      parameters:
-        - name: producerId
-          in: path
-          description: Producer ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: unitId
-          in: path
-          description: Unit ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: carrierId
-          in: path
-          description: Carrier ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: shipmentId
-          in: path
-          description: Shipment ID
-          required: true
-          schema:
-            type: integer
-            format: int64
       responses:
         '204':
-          description: No Content
-        '400':
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          description: The shipment was deleted
         '401':
-          description: Unauthorized
+          description: Unauthorized. The user is not authenticated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
-          description: Forbidden
+          description: Forbidden. The user does not have permission to delete a shipment of a carrier of a production unit of a producer
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '404':
-          description: Not Found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal Server Error
+          description: Not Found. The producer, production unit, carrier or shipment was not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
   /producers/{producerId}/units/{unitId}/carriers/{carrierId}/shipments/{shipmentId}/events:
+    parameters:
+      - $ref: '#/components/parameters/producerId'
+      - $ref: '#/components/parameters/productionUnitId'
+      - $ref: '#/components/parameters/carrierId'
+      - $ref: '#/components/parameters/shipmentId'
     get:
       summary: Get all events of a shipment of a carrier
       description: Get all events of a shipment of a carrier
@@ -3713,239 +2419,107 @@ paths:
       tags:
         - producers
       parameters:
-        - name: producerId
-          in: path
-          description: Producer ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: unitId
-          in: path
-          description: Unit ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: carrierId
-          in: path
-          description: Carrier ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: shipmentId
-          in: path
-          description: Shipment ID
-          required: true
-          schema:
-            type: integer
-            format: int64
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/pageSize'
       responses:
         '200':
-          description: OK
+          description: The events
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/ShipmentEvent'
-        '400':
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+                  $ref: '#/components/schemas/GetShipmentEventResponse'
         '401':
-          description: Unauthorized
+          description: Unauthorized. The user is not authenticated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
-          description: Forbidden
+          description: Forbidden. The user does not have permission to get events of a shipment of a carrier of a production unit of a producer
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '404':
-          description: Not Found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal Server Error
+          description: Not Found. The producer, production unit, carrier or shipment was not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
     post:
+      security:
+        - bearerAuth: []
       summary: Create a new event for a shipment of a carrier
       description: Create a new event for a shipment of a carrier
       operationId: createEventForShipmentOfCarrier
       tags:
         - producers
-      parameters:
-        - name: producerId
-          in: path
-          description: Producer ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: unitId
-          in: path
-          description: Unit ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: carrierId
-          in: path
-          description: Carrier ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: shipmentId
-          in: path
-          description: Shipment ID
-          required: true
-          schema:
-            type: integer
-            format: int64
       responses:
         '201':
-          description: The created event
+          description: The event was created
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ShipmentEvent'
+                $ref: '#/components/schemas/GetShipmentEventResponse'
         '400':
-          description: Bad Request
+          description: Bad Request. The event is invalid
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '401':
-          description: Unauthorized
+          description: Unauthorized. The user is not authenticated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
-          description: Forbidden
+          description: Forbidden. The user does not have permission to create an event for a shipment of a carrier of a production unit of a producer
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '404':
-          description: Not Found
+          description: Not Found. The producer, production unit, carrier or shipment was not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal Server Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-  /producers/{producerId}/units/{unitId}/products/{productId}:
+  /producers/{producerId}/units/{unitId}/products/{producerProductId}:
+    parameters:
+      - $ref: '#/components/parameters/producerId'
+      - $ref: '#/components/parameters/productionUnitId'
+      - $ref: '#/components/parameters/producerProductId'
     get:
+      # TODO should this be secured?
       summary: Get a product of a unit
       description: Get a product of a unit
       operationId: getProductByUnit
       tags:
         - producers
-      parameters:
-        - name: producerId
-          in: path
-          description: Producer ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: unitId
-          in: path
-          description: Unit ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: productId
-          in: path
-          description: Product ID
-          required: true
-          schema:
-            type: integer
-            format: int64
       responses:
         '200':
-          description: OK
+          description: The product
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Product'
-        '400':
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/GetProductResponse'
         '404':
-          description: Not Found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal Server Error
+          description: Not Found. The producer, production unit or product was not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
     put:
+      security:
+        - bearerAuth: []
       summary: Add a product to a unit
       description: Add a product to a unit
       operationId: addProductToUnit
       tags:
         - producers
-      parameters:
-        - name: producerId
-          in: path
-          description: Producer ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: unitId
-          in: path
-          description: Unit ID
-          required: true
-          schema:
-            type: integer
-            format: int64
-        - name: productId
-          in: path
-          description: Product ID
-          required: true
-          schema:
-            type: integer
-            format: int64
       responses:
         '201':
           description: The product was added to the unit
@@ -3955,61 +2529,62 @@ paths:
                 $ref: '#/components/schemas/Product'
         '204':
           description: The product was already on the unit
-        '400':
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
         '401':
-          description: Unauthorized
+          description: Unauthorized. The user is not authenticated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '403':
-          description: Forbidden
-          content:
+          description: Forbidden. The user does not have permission to add a product to a production unit of a producer
+          content:  
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '404':
-          description: Not Found
+          description: Not Found. The producer, production unit or product was not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal Server Error
+        '409':
+          description: Conflict. The product is already on the unit
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+    # TODO delete?
 components:
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
+    firebase:
+      type: apiKey
+      in: header
+      name: Authorization
   parameters:
-    productId:
-      name: productId
-      in: path
-      description: The id of a product
-      required: true
-      schema:
-        type: integer
-        format: int64
-        example: 1
     productSpecId:
-      name: productSpecId
+      name: Product Specification ID
       in: path
-      description: The id of a product specification
+      description: The ID of the ProductSpec entity
       required: true
       schema:
         type: integer
         format: int64
         example: 1
+        minimum: 1
+    producerProductId:
+      name: Producer Product ID
+      in: path
+      description: The ID of a ProducerProduct entity
+      required: true
+      schema:
+        type: integer
+        format: int64
+        example: 1
+        minimum: 1
     categoryId:
       name: categoryId
       in: path
@@ -4019,6 +2594,87 @@ components:
         type: integer
         format: int64
         example: 1
+        minimum: 1
+    fieldId:
+      name: fieldId
+      in: path
+      description: The id of a field
+      required: true
+      schema:
+        type: integer
+        format: int64
+        example: 1
+        minimum: 1
+    consumerId:
+      name: consumerId
+      in: path
+      description: The id of a consumer
+      required: true
+      schema:
+        type: integer
+        format: int64
+        example: 1
+        minimum: 1
+    addressId:
+      name: addressId
+      in: path
+      description: The id of an address
+      required: true
+      schema:
+        type: integer
+        format: int64
+        example: 1
+        minimum: 1
+    orderId:
+      name: orderId
+      in: path
+      description: The id of an order
+      required: true
+      schema:
+        type: integer
+        format: int64
+        example: 1
+        minimum: 1
+    producerId:
+      name: producerId
+      in: path
+      description: The id of a producer
+      required: true
+      schema:
+        type: integer
+        format: int64
+        example: 1
+        minimum: 1
+    productionUnitId:
+      name: productionUnitId
+      in: path
+      description: The id of a production unit
+      required: true
+      schema:
+        type: integer
+        format: int64
+        example: 1
+        minimum: 1
+    carrierId:
+      name: carrierId
+      in: path
+      description: The id of a carrier
+      required: true
+      schema:
+        type: integer
+        format: int64
+        example: 1
+        minimum: 1
+    shipmentId:
+      name: shipmentId
+      in: path
+      description: The id of a shipment
+      required: true
+      schema:
+        type: integer
+        format: int64
+        example: 1
+        minimum: 1
     page:
       name: page
       in: query
@@ -4050,6 +2706,9 @@ components:
         type: string
         example: name:asc
   schemas:
+    # TODO make request & response objects for all endpoints
+    # TODO sync the classes with the class diagram
+
     # Base schemas
     BaseItemsRequest:
       type: object
@@ -4138,7 +2797,7 @@ components:
           format: JWT
           # TODO example
     # Requests
-    CreateProductsSpecRequest:
+    CreateProductSpecsRequest:
       allOf:
         - $ref: '#/components/schemas/BaseItemsRequest'
         - type: object
@@ -4158,8 +2817,8 @@ components:
               type: array
               items:
                 $ref: '#/components/schemas/Product'
-    CreateProductsSpecResponse:
-      description: The response for the create products specification endpoint
+    CreateProductSpecsResponse:
+      description: The response for the create product specifications endpoint
       allOf:
         - $ref: '#/components/schemas/BasePaginatedResponse'
         - type: object
