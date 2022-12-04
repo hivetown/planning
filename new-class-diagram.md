@@ -48,18 +48,22 @@ classDiagram
     class User {
         <<abstract>>
         -number id
-        -String name
-        -String email
+        -string name
+        -string email
         -number phone
         -number vat
-        -List~Address~ addresses
+        -UserType type
         
         +canLogin() boolean
+        %% TODO separate table?
+        +getNotificationPreferences() unknown
     }
 
     class Consumer {
         -UserType type = CONSUMER
+        -Cart cart
         -List~Order~ orders
+        -List~Address~ addresses
     }
 
     class ConsumerGateway {
@@ -90,12 +94,14 @@ classDiagram
     class Address {
         -number id
         -number number
-        -String door
+        -string door
         -number floor
-        -String zipCode
-        -String street
-        -String district
-        -String county
+        -string zipCode
+        -string street
+        -string parish
+        -string county
+        -string city
+        -string district
         -number latitude
         -number longitude
     }
@@ -122,9 +128,13 @@ classDiagram
         +delete(ProductionUnit productionUnit) void
     }
 
+    class ProductionUnitFactory {
+        +create(Producer producer, Address address) ProductionUnit
+    }
+
     class Carrier {
         -number id
-        -String licensePlate
+        -string licensePlate
         -ProductionUnit productionUnit
         -CarrierStatus status
     }
@@ -134,6 +144,10 @@ classDiagram
         +insert(Carrier carrier) Carrier
         +update(Carrier carrier) Carrier
         +delete(Carrier carrier) void
+    }
+
+    class CarrierFactory {
+        +create(Producer producer, string name, string ...etc) Carrier
     }
 
     %% TODO: isto ser calculado em vez de ser definido
@@ -159,28 +173,38 @@ classDiagram
         +delete(OrderItem orderItem) void
     }
 
+    class OrderItemFactory {
+        +create(Order order, ProducerProduct product, number quantity) OrderItem
+    }
+
     class Order {
         -number id
-        -number totalPrice
         -Consumer consumer
         -Address shippingAddress
         -List~OrderItem~ items
-        %% TODO: devemos calcular em vez de guardar?
+        +addItem(OrderItem item) void
+        +canCancel() void
+        +cancel() void
     }
 
     class OrderGateway {
+        +findFromConsumer(Consumer consumer) List~Order~
         +get(number id) Order
         +insert(Order order) Order
         +update(Order order) Order
         +delete(Order order) void
     }
 
-    class ShipmentEvent{
+    class OrderFactory {
+        +createFromCart(Cart cart) Order
+    }
+
+    class ShipmentEvent {
         -number id
+        -Date date
         -Order order
         -ShipmentStatus status
         -Address address
-        -Date date
     }
 
     class ShipmentEventGateway {
@@ -190,10 +214,15 @@ classDiagram
         +delete(ShipmentEvent shipmentEvent) void
     }
 
-    class ShipmentStatus{
+    class ShipmentEventFactory {
+        +create(Order order, ShipmentStatus status, Address address, Date date) ShipmentEvent
+    }
+
+    %% TODO representa os tipos de shipment status: "em preparação", "em transporte", "entregue", etc
+    class ShipmentStatus {
         -number id
-        -String name
-        -String description
+        -string name
+        -string description
     }
 
     %% TODO: necessário? só se for para o admin
@@ -205,9 +234,10 @@ classDiagram
     }
 
     class ProducerProduct {
+        %% O id tecnicamente é uma composição de id da ProductSpec e do Producer
         -number id
         -number currentPrice
-        -date productionDate
+        -Date productionDate
         -Producer producer
         -List~ProductionUnit~ productionUnits
         -ProductSpec specification
@@ -217,38 +247,43 @@ classDiagram
     }
 
     class ProducerProductGateway {
+        +findFromSpec(ProductSpec spec) List~ProducerProduct~
+        +findFromProductionUnit(ProductionUnit productionUnit) List~ProducerProduct~
         +get(number id) ProducerProduct
         +insert(ProducerProduct producerProduct) ProducerProduct
         +update(ProducerProduct producerProduct) ProducerProduct
         +delete(ProducerProduct producerProduct) void
     }
 
-    class ProductSpecification {
+    class ProductSpec {
         -number id
-        -String name
-        -String description
-        -List~String~ images
+        -string name
+        -string description
+        -List~string~ images
         -List~Category~ categories
         %% TODO fieldvalues
         -List~Field~ fields
+        +compare(ProductSpec other)
     }
 
-    class ProductSpecificationGateway {
-        +get(number id) ProductSpecification
-        +insert(ProductSpecification productSpecification) ProductSpecification
-        +update(ProductSpecification productSpecification) ProductSpecification
-        +delete(ProductSpecification productSpecification) void
+    class ProductSpecGateway {
+        +findFromCategory(List~Category~ category) List~ProductSpec~
+        +find(string query, ProductSpecSearchFilter filter) List~ProductSpec~
+        +get(number id) ProductSpec
+        +insert(ProductSpec productSpec) ProductSpec
+        +update(ProductSpec productSpec) ProductSpec
+        +delete(ProductSpec productSpec) void
     }
 
-    class ProductStatus{
+    class ProductStatus {
         <<enum>>
         +AVAILABLE
         +SOLD_OUT
     }
 
-    class Category{
+    class Category {
         -number id
-        -String name
+        -string name
         -Category parent
         %% TODO fields, subCategories?
     }
@@ -260,7 +295,7 @@ classDiagram
         +delete(Category category) void
     }
 
-    class Field{
+    class Field {
         -number id
         -string name
         -string unit
@@ -282,5 +317,122 @@ classDiagram
         +DATE
         +BOOLEAN
         +ENUM
+    }
+
+    class Cart {
+        %% o id é o mesmo que o do consumidor
+        -Consumer consumer
+        +addProduct(ProducerProduct product, number quantity) void
+    }
+
+    class CartGateway {
+        +get(number consumerId) Cart
+        +insert(Cart cart) Cart
+        +update(Cart cart) Cart
+        +delete(Cart cart) void
+    }
+
+    class CartItemFactory {
+        +create(Cart cart, ProducerProduct product, number quantity) CartItem
+    }
+
+    class CartItem {
+        %% tecnicamente é uma combinação dos ids do producerProduct e do cart
+        -number id
+        -number quantity
+        -ProducerProduct product
+        -Cart cart
+    }
+
+    class CartItemGateway {
+        +findFromCart(Cart cart) List~CartItem~
+        +get(number cartId, number producerProductId) CartItem
+        +insert(CartItem cartItem) CartItem
+        +update(CartItem cartItem) CartItem
+        +delete(CartItem cartItem) void
+    }
+
+    %% TODO verificar com o prof
+    class CredentialType {
+        <<enum>>
+        +PASSWORD
+        +GOOGLE
+        +TWITTER
+        +FACEBOOK
+    }
+
+    class Credential {
+        -CredentialType type
+    }
+
+    class PaymentGateway {
+        +refund(Order order) void
+        +createCheckoutSession(Order order) CheckoutSession
+        %% TODO: definir Strategies que tratem de cada tipo de webhook event que recebermos
+        +handleWebhookEvent(string payload, string sigHeader) void
+    }
+
+    class WebhookEventHandlerStrategy {
+        <<interface>>
+        +run(string payload, string sigHeader) void
+    }
+
+    class CheckoutSession {
+        -string url
+    }
+
+    %% TODO perguntar ao prof se é necessário já que temos o shipmentevent
+    class Notification {
+        %% user that triggered the notification
+        -User actor
+        -List~User~ recipients
+        %% the entity that the notification is about
+        -ShipmentEvent shipmentEvent
+    }
+
+    %% TODO separate into socket and email classes? maybe strategy?
+    class NotificationFactory {
+        +createSocketShipmentNotification(ShipmentEvent shipmentEvent, List~NotificationSubscriber~ subscribers) Notification
+        +createEmailShipmentNotification(Order order, List~NotificationSubscriber~ subscribers) Notification
+    }
+
+    class NotificationMessageFactory {
+        +makeShippingSocketMessage(ShipmentEvent shipment) unknown
+    }
+
+    %% TODO - these are the users that will receive the notification
+    class NotificationSubscriber {
+
+    }
+
+    %% This is not a database gateway
+    class SocketGateway {
+        +findSocket(number subscriberId)
+        +send(Socket socket, unknown message)
+    }
+
+    %% This is not a database gateway
+    class EmailGateway {
+        +send(string address, unknown message)
+    }
+
+    class ProducerProductPrice {
+        -number id
+        -number price
+        -Date date
+        -ProducerProduct product
+    }
+
+    class ProducerProductPriceGateway {
+        %% TODO needed or loaded from producerproduct?
+        +findFromProduct(ProducerProduct product) List~ProducerProductPrice~
+        +get(number id) ProducerProductPrice
+        +insert(ProducerProductPrice producerProductPrice) ProducerProductPrice
+        +update(ProducerProductPrice producerProductPrice) ProducerProductPrice
+        +delete(ProducerProductPrice producerProductPrice) void
+    }
+
+    class ProducerProductPriceFactory {
+        +create(ProducerProduct product, number price, Date date) ProducerProductPrice
     }
 ```
