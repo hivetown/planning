@@ -18,14 +18,22 @@ classDiagram
     ProductSpecGateway --|> ProductSpec
     FieldGateway --|> Field
     CategoryGateway --|> Category
+    CartGateway --|> Cart
+    OrderItemGateway --|> OrderItem
+    CartItemGateway --|> CartItem
+    ShipmentEventGateway --|> ShipmentEvent
+    ShipmentStatusGateway --|> ShipmentStatus
+
 
     Consumer "*" -- "1" UserType
     Consumer "1" -- "*" Order
+    Consumer "1" -- "1" Cart
 
     Producer "*" -- "1" UserType
     Producer "1" -- "*" ProductionUnit
 
     ProductionUnit "1" -- "*" Carrier
+    ProductionUnit "*" -- "*" ProducerProduct
 
     Carrier "*" -- "1" CarrierStatus
 
@@ -41,8 +49,11 @@ classDiagram
     ProductSpec "*" -- "*" Category
 
     Category "*" -- "1" Category
+    Category "*" -- "*" Field
 
     Field "*" -- "1" FieldType
+
+    Cart "1" -- "*" CartItem
 
 
     class User {
@@ -237,15 +248,12 @@ classDiagram
     }
 
     class ProducerProduct {
-        %% O id tecnicamente é uma composição de id da ProductSpec e do Producer 
-        %% Retira-se o id então?
         -number id
         -number currentPrice
         -Date productionDate
         -Producer producer
         -List~ProductionUnit~ productionUnits
         -ProductSpec specification
-        %% TODO: devemos calcular em vez de guardar?
         -ProductStatus status
         -List~ProducerProductPrice~ priceHistory
     }
@@ -289,7 +297,7 @@ classDiagram
         -number id
         -string name
         -Category parent
-        %% TODO fields, subCategories?
+        -List~Field~ fields
     }
     
     class CategoryGateway {
