@@ -1542,6 +1542,8 @@ paths:
                 $ref: '#/components/schemas/Error'
   /producers:
     get:
+      security:
+        - bearerAuth: []
       summary: Get all producers
       description: Get all producers
       operationId: getProducers
@@ -2413,6 +2415,8 @@ paths:
       - $ref: '#/components/parameters/carrierId'
       - $ref: '#/components/parameters/shipmentId'
     get:
+      security:
+        - bearerAuth: []
       summary: Get all events of a shipment of a carrier
       description: Get all events of a shipment of a carrier
       operationId: getEventsOfShipmentOfCarrier
