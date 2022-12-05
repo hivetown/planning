@@ -15,7 +15,7 @@ classDiagram
     ProductionUnitGateway --|> ProductionUnit
     CarrierGateway --|> Carrier
     ProducerProductGateway --|> ProducerProduct
-    ProductSpecificationGateway --|> ProductSpecification
+    ProductSpecGateway --|> ProductSpec
     FieldGateway --|> Field
     CategoryGateway --|> Category
 
@@ -35,10 +35,10 @@ classDiagram
     ShipmentEvent "*" -- "1" ShipmentStatus
 
     ProducerProduct "*" -- "1" ProductStatus
-    ProducerProduct "*" -- "1" ProductSpecification
+    ProducerProduct "*" -- "1" ProductSpec
 
-    ProductSpecification "*" -- "*" Field
-    ProductSpecification "*" -- "*" Category
+    ProductSpec "*" -- "*" Field
+    ProductSpec "*" -- "*" Category
 
     Category "*" -- "1" Category
 
@@ -151,6 +151,7 @@ classDiagram
     }
 
     %% TODO: isto ser calculado em vez de ser definido
+    %% Mas o calculo pode levar ao enumerado não?
     class CarrierStatus {
         <<enum>>
         +AVAILABLE
@@ -166,6 +167,7 @@ classDiagram
     }
 
     %% TODO: necessário?
+    %% Acho que não, porque não vai haver uma tabela OrderItem
     class OrderItemGateway {
         +get(number id) OrderItem
         +insert(OrderItem orderItem) OrderItem
@@ -226,6 +228,7 @@ classDiagram
     }
 
     %% TODO: necessário? só se for para o admin
+    %% Só se for para a BD  
     class ShipmentStatusGateway {
         +get(number id) ShipmentStatus
         +insert(ShipmentStatus shipmentStatus) ShipmentStatus
@@ -234,7 +237,8 @@ classDiagram
     }
 
     class ProducerProduct {
-        %% O id tecnicamente é uma composição de id da ProductSpec e do Producer
+        %% O id tecnicamente é uma composição de id da ProductSpec e do Producer 
+        %% Retira-se o id então?
         -number id
         -number currentPrice
         -Date productionDate
