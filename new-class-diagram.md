@@ -173,8 +173,9 @@ classDiagram
         +delete(OrderItem orderItem) void
     }
 
+    %% TODO: necessário.
     class OrderItemFactory {
-        +create(Order order, ProducerProduct product, number quantity) OrderItem
+        +createFromCartItem(Order order, CartItem cartItem) OrderItem
     }
 
     class Order {
@@ -195,6 +196,7 @@ classDiagram
         +delete(Order order) void
     }
 
+    %% TODO: necessário.
     class OrderFactory {
         +createFromCart(Cart cart) Order
     }
@@ -390,6 +392,7 @@ classDiagram
         -ShipmentEvent shipmentEvent
     }
 
+    %% TODO necessário.
     %% TODO separate into socket and email classes? maybe strategy?
     class NotificationFactory {
         +createSocketShipmentNotification(ShipmentEvent shipmentEvent, List~NotificationSubscriber~ subscribers) Notification

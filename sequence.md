@@ -510,8 +510,8 @@ sequenceDiagram
     deactivate C
 
     loop for each cartItem.product
-        OF ->> OIF: create(order, product)
-        OIF ->> OI: new(order, product)
+        OF ->> OIF: createFromCartItem(order, cartItem)
+        OIF ->> OI: new(order, cartItem)
         OI -->> OIF: orderItem
         OIF ->> OIG: insert(orderItem)
         OIG -->> OIF: insertedOrderItem
@@ -996,15 +996,13 @@ sequenceDiagram
 
 ## RF-21: Criação, edição, e remoção de veículo de transporte de produtos
 
-<!-- TODO perguntar se é assim ou diretamente na unidade de produção -->
-
 Bastante semelhante a [RF-18](#rf-18-criação-gestão-e-remoção-de-unidade-de-produção).
 
 Separando em três partes: criação, gestão, e remoção.
 
 ### Criação
 
-De forma semelhante ao [RF-18](#rf-18-criação-gestão-e-remoção-de-unidade-de-produção), a criação de um veículo de transporte de produtos é feita através de um `POST` a `/producers/{producerId}/carriers`
+De forma semelhante ao [RF-18](#rf-18-criação-gestão-e-remoção-de-unidade-de-produção), a criação de um veículo de transporte de produtos é feita através de um `POST` a `/producers/{producerId}/units/{unitId}/carriers`
 
 ```mermaid
 sequenceDiagram
@@ -1014,11 +1012,11 @@ sequenceDiagram
     participant CG as CarrierGateway
     participant C as Carrier
 
-    A ->> API: POST /producers/{producerId}/carriers
+    A ->> API: POST /producers/{producerId}/units/{unitId}/carriers
 
     Note right of API: We create the carrier
-    API ->> CF: createCarrier(producerId, {name, description, etc})
-    CF ->> C: new(producerId, {name, description, etc})
+    API ->> CF: create(producerId, unitId, {name, description, etc})
+    CF ->> C: new(producerId, unitId, {name, description, etc})
     activate C
     C -->> CF: carrier
 
@@ -1032,7 +1030,7 @@ sequenceDiagram
 
 ### Edição
 
-De forma semelhante ao [RF-18](#rf-18-criação-gestão-e-remoção-de-unidade-de-produção), a edição de um *carrier* faz-se através de um `PUT` a `/producers/{producerId}/carriers/{carrierId}`
+De forma semelhante ao [RF-18](#rf-18-criação-gestão-e-remoção-de-unidade-de-produção), a edição de um *carrier* faz-se através de um `PUT` a `/producers/{producerId}/units/{unitId}/carriers/{carrierId}`
 
 ```mermaid
 sequenceDiagram
@@ -1040,7 +1038,7 @@ sequenceDiagram
     participant API
     participant CG as CarrierGateway
 
-    A ->> API: PUT /producers/{producerId}/carriers/{carrierId}
+    A ->> API: PUT /producers/{producerId}/units/{unitIt}/carriers/{carrierId}
 
     API ->> CG: get(carrierId)
     CG -->> API: carrier
@@ -1055,7 +1053,7 @@ sequenceDiagram
 
 ### Remoção
 
-De forma semelhante ao [RF-18](#rf-18-criação-gestão-e-remoção-de-unidade-de-produção), a remoção de um *carrier* faz-se através de um `DELETE` a `/producers/{producerId}/carriers/{carrierId}`
+De forma semelhante ao [RF-18](#rf-18-criação-gestão-e-remoção-de-unidade-de-produção), a remoção de um *carrier* faz-se através de um `DELETE` a `/producers/{producerId}/units/{unitId}/carriers/{carrierId}`
 
 ```mermaid
 sequenceDiagram
@@ -1063,7 +1061,7 @@ sequenceDiagram
     participant API as API
     participant CG as CarrierGateway
 
-    A ->> API: DELETE /producers/{producerId}/carriers/{carrierId}
+    A ->> API: DELETE /producers/{producerId}/units/{unitId}/carriers/{carrierId}
 
     API ->> CG: delete(carrierId)
     CG -->> API: deletedCarrier

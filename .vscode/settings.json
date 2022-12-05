@@ -1,7 +1,8 @@
 {
     "markdown-mermaid.darkModeTheme": "dark",
     "yaml.schemas": {
-        "openapi:v3": "file:///home/lucks/pgp/diagrams/api.yml"
+        "openapi:v3": "file:///home/lucks/pgp/diagrams/api.yml",
+        "swaggerviewer:openapi": "file:///home/lucks/code/fcul/pgp/planning/diagrams/api.yml"
     },
     "markdown.preview.scrollEditorWithPreview": false,
     "markdown.preview.scrollPreviewWithEditor": false
