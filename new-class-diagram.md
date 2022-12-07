@@ -3,12 +3,11 @@
 ```mermaid
 classDiagram
 
-    CarrierGateway --|> Carrier
-
     ProducerGateway --|> Producer
-    ProductionUnitGateway --|> ProductionUnit
+    
     Producer "1" -- "*" ProductionUnit
     Producer "*" -- "1" UserType
+    ProductionUnitGateway --|> ProductionUnit
 
     ConsumerGateway --|> Consumer
     CartGateway --|> Cart
@@ -18,7 +17,9 @@ classDiagram
     
     ProductionUnit "1" -- "*" ProducerProduct
     ProductionUnit "1" -- "*" Carrier
+    CarrierGateway --|> Carrier
     Carrier "*" -- "1" CarrierStatus
+    
     
     Cart "1" -- "*" CartItem
     CartItemGateway --|> CartItem
@@ -37,7 +38,8 @@ classDiagram
     ProductSpecGateway --|> ProductSpec
     ProducerProduct "*" -- "1" ProductSpec
 
-    
+    ShipmentProducts "1" -- "*" ProducerProduct
+    ShipmentEvent "1" -- "1" ShipmentProducts
     
     FieldGateway --|> Field
     ProductSpec "*" -- "*" Field
@@ -49,6 +51,7 @@ classDiagram
     Field "*" -- "1" FieldType
     Category "*" -- "1" Category
     Category "*" -- "*" Field
+    Field "1" -- "*" FieldPossibleValue
 
     Order "1" -- "*" ShipmentEvent
     ShipmentEvent "*" -- "1" ShipmentStatus
@@ -286,12 +289,12 @@ classDiagram
         +delete(Category category) void
     }
 
-    class Field {F
+    class Field {
         -number id
         -string name
         -string unit
         -FieldType type
-        %% TODO possible values
+        -List~FieldPossibleValue~ possibleValues
     }
 
     class FieldGateway {
@@ -299,6 +302,13 @@ classDiagram
         +insert(Field field) Field
         +update(Field field) Field
         +delete(Field field) void
+    }
+
+    class FieldPossibleValue {
+        -Field field
+        -String value
+        +getField() Field
+        +getValue() String
     }
 
     class FieldType{
@@ -337,6 +347,11 @@ classDiagram
         +insert(CartItem cartItem) CartItem
         +update(CartItem cartItem) CartItem
         +delete(CartItem cartItem) void
+    }
+
+    class ShipmentProducts{
+        -List~ProducerProduct~ products
+        -Shipment shipment
     }
 
     class CartItemFactory {
