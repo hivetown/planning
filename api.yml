@@ -21,7 +21,6 @@ info:
 servers:
   - url: https://api.server.test/v1
 paths:
-  # TODO should /products return ProductSpec[]?
   /auth/login:
     post:
       summary: Authenticate a user
@@ -66,6 +65,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/page'
         - $ref: '#/components/parameters/pageSize'
+        # TODO: enum e tal para o sort ser mais específico
         - $ref: '#/components/parameters/sort'
       responses:
         '200':
@@ -75,7 +75,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/GetProductsResponse'
+                  $ref: '#/components/schemas/GetProductSpecsResponse'
     post:
       # TODO who has permissions to create a product?
       security:
@@ -388,6 +388,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+    # todo: this should have the value we want to set
     put:
       security:
         - bearerAuth: []
@@ -463,6 +464,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  # TODO this should be edit
   /products/{productSpecId}/categories/{categoryId}/fields/{fieldId}/value:
     parameters:
       - $ref: '#/components/parameters/productSpecId'
@@ -927,52 +929,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-    post:
-      security:
-        - bearerAuth: []
-      summary: Create an order for a consumer
-      description: Create an order for a consumer
-      operationId: createConsumerOrder
-      tags:
-        - consumers
-      requestBody:
-        description: The order to create
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CreateConsumerOrderRequest'
-      responses:
-        '201':
-          description: The order was created
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CreateConsumerOrderResponse'
-        '400':
-          description: Bad Request. The order was invalid
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthorized. The user is not authenticated
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden. The user does not have permission to create an order for a consumer
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '404':
-          description: Not Found. The consumer was not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
   /consumers/{consumerId}/orders/{orderId}:
     parameters:
       - $ref: '#/components/parameters/consumerId'
@@ -1006,52 +962,6 @@ paths:
                 $ref: '#/components/schemas/Error'
         '403':
           description: Forbidden. The user does not have permission to get an order of a consumer
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '404':
-          description: Not Found. The consumer or order was not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-    put:
-      security:
-        - bearerAuth: []
-      summary: Update an order of a consumer
-      description: Update an order of a consumer
-      operationId: updateConsumerOrder
-      tags:
-        - consumers
-      requestBody:
-        description: The order to update
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UpdateConsumerOrderRequest'
-      responses:
-        '200':
-          description: The order was updated
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UpdateConsumerOrderResponse'
-        '400':
-          description: Bad Request. The order was invalid
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthorized. The user is not authenticated
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden. The user does not have permission to update an order of a consumer
           content:
             application/json:
               schema:
@@ -1256,6 +1166,9 @@ paths:
       operationId: getFieldsOfCategory
       tags:
         - categories
+      parameters:
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/pageSize'
       responses:
         '200':
           description: The fields of the category
@@ -1892,25 +1805,25 @@ paths:
     post:
       security:
         - bearerAuth: []
-      summary: Add a new production unit to a producer
-      description: Add a new production unit to a producer
-      operationId: addUnitToProducer
+      summary: Create a new production unit to a producer
+      description: Create a new production unit to a producer
+      operationId: createProducerUnit
       tags:
         - producers
       requestBody:
-        description: The production unit to add
+        description: The production unit to create
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/AddProductionUnitRequest'
+              $ref: '#/components/schemas/CreateProductionUnitRequest'
       responses:
         '201':
           description: The production unit was added
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AddProductionUnitResponse'
+                $ref: '#/components/schemas/CreateProductionUnitResponse'
         '400':
           description: Bad Request. The production unit is invalid
           content:
@@ -2055,7 +1968,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GetCarriersResponse'
+                $ref: '#/components/schemas/GetProductionUnitCarriersResponse'
         '401':
           description: Unauthorized. The user is not authenticated
           content:
@@ -2082,6 +1995,13 @@ paths:
       operationId: createCarrierForUnit
       tags:
         - producers
+      requestBody:
+        description: The carrier to create
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProductionUnitCarrierRequest'
       responses:
         '201':
           description: The carrier was created
@@ -2159,6 +2079,13 @@ paths:
       operationId: updateCarrier
       tags:
         - producers
+      requestBody:
+        description: The carrier to update
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProductionUnitCarrierRequest'
       responses:
         '200':
           description: The carrier was updated
@@ -2244,7 +2171,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/GetShipmentResponse'
+                  $ref: '#/components/schemas/GetShipmentsResponse'
         '401':
           description: Unauthorized. The user is not authenticated
           content:
@@ -2263,45 +2190,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-    post:
-      security:
-        - bearerAuth: []
-      summary: Create a shipment for a carrier
-      description: Create a shipment for a carrier
-      operationId: createShipmentForCarrier
-      tags:
-        - producers
-      responses:
-        '201':
-          description: The shipment was created
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CreateShipmentResponse'
-        '400':
-          description: Bad Request. The shipment is invalid
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthorized. The user is not authenticated
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden. The user does not have permission to create a shipment for a carrier of a production unit of a producer
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '404':
-          description: Not Found. The producer, production unit or carrier was not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error' 
+    # TODO post?
   /producers/{producerId}/units/{unitId}/carriers/{carrierId}/shipments/{shipmentId}:
     parameters:
       - $ref: '#/components/parameters/producerId'
@@ -2349,6 +2238,13 @@ paths:
       operationId: updateShipmentOfCarrier
       tags:
         - producers
+      requestBody:
+        description: The shipment to update
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateShipmentRequest'
       responses:
         '201':
           description: The shipment was updated
@@ -2434,7 +2330,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/GetShipmentEventResponse'
+                  $ref: '#/components/schemas/GetShipmentEventsResponse'
         '401':
           description: Unauthorized. The user is not authenticated
           content:
@@ -2461,13 +2357,20 @@ paths:
       operationId: createEventForShipmentOfCarrier
       tags:
         - producers
+      requestBody:
+        description: The event to create
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateShipmentEventRequest'
       responses:
         '201':
           description: The event was created
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GetShipmentEventResponse'
+                $ref: '#/components/schemas/CreateShipmentEventResponse'
         '400':
           description: Bad Request. The event is invalid
           content:
@@ -2510,7 +2413,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GetProductResponse'
+                $ref: '#/components/schemas/GetProductionUnitProductResponse'
         '404':
           description: Not Found. The producer, production unit or product was not found
           content:
@@ -2719,7 +2622,7 @@ components:
       type: object
       properties:
         items:
-          description: List of items. Must be overriden in the extended schema.
+          description: List of items. Must be overridden in the extended schema.
           type: array
           minItems: 1
           maxItems: 100
@@ -2803,6 +2706,7 @@ components:
           # TODO example
     # Requests
     CreateProductSpecsRequest:
+      description: The required body for the product specification creation
       allOf:
         - $ref: '#/components/schemas/BaseItemsRequest'
         - type: object
@@ -2810,9 +2714,97 @@ components:
             items:
               type: array
               items:
-                $ref: '#/components/schemas/ProductSpec'
+                allOf:
+                  - $ref: '#/components/schemas/ProductSpec'
+                  - required:
+                      - TODO
+    UpdateProductSpecRequest:
+      description: The required body for the product specification update
+      $ref: '#/components/schemas/ProductSpec'
+    CreateConsumerRequest:
+      description: The required body for the consumer creation
+      allOf:
+        - $ref: '#/components/schemas/Consumer'
+        - required:
+            - TODO
+    UpdateConsumerRequest:
+      description: The required body for the consumer update
+      $ref: '#/components/schemas/Consumer'
+    CreateConsumerAddressRequest:
+      description: The required body to create a consumer address
+      allOf:
+        - $ref: '#/components/schemas/Address'
+        - required:
+            - TODO
+    UpdateConsumerAddressRequest:
+      description: The required body to update a consumer
+      $ref: '#/components/schemas/Consumer'
+    CreateCategoryRequest:
+      description: The required body to create a category
+      allOf:
+        - $ref: '#/components/schemas/Category'
+        - required:
+            - TODO
+    UpdateCategoryRequest:
+      description: The required body to update a category
+      $ref: '#/components/schemas/Category'
+    CreateFieldRequest:
+      description: The required body to create a field
+      allOf:
+        - $ref: '#/components/schemas/Field'
+        - required:
+            - TODO
+    UpdateFieldRequest:
+      description: The required body to update a field
+      $ref: '#/components/schemas/Field'
+    CreateProducerRequest:
+      description: The required body to create a producer
+      allOf:
+        - $ref: '#/components/schemas/Producer'
+        - required:
+            - TODO
+    UpdateProducerRequest:
+      description: The required body to update a producer
+      $ref: '#/components/schemas/Producer'
+    UpdateProducerProductRequest:
+      description: The required body to update a producer product
+      $ref: '#/components/schemas/ProducerProduct'
+    CreateProductionUnitRequest:
+      description: The required body to create a production unit
+      allOf:
+        - $ref: '#/components/schemas/ProductionUnit'
+        - required:
+            - TODO
+    UpdateProductionUnitRequest:
+      description: The required body to update a production unit
+      $ref: '#/components/schemas/ProductionUnit'
+    CreateProductionUnitCarrierRequest:
+      description: The required body to create a carrier
+      allOf:
+        - $ref: '#/components/schemas/Carrier'
+        - required:
+            - TODO
+    UpdateProductionUnitCarrierRequest:
+      description: The request to update a carrier
+      $ref: '#/components/schemas/Carrier'
+    UpdateShipmentRequest:
+      description: The required body to update a shipment
+      $ref: '#/components/schemas/Shipment'
+    CreateShipmentEventRequest:
+      description: The required body to create a shipment event
+      allOf:
+        - $ref: '#/components/schemas/ShipmentEvent'
+        - required:
+            - TODO
+
+
+
+
+
+
+
     # Responses
-    GetProductsResponse:
+    GetProductSpecsResponse:
       description: The response for the get products endpoint
       allOf:
         - $ref: '#/components/schemas/BasePaginatedResponse'
@@ -2822,6 +2814,9 @@ components:
               type: array
               items:
                 $ref: '#/components/schemas/Product'
+    GetProductSpecResponse:
+      description: The response for the get product spec endpoint
+      $ref: '#/components/schemas/ProductSpec'
     CreateProductSpecsResponse:
       description: The response for the create product specifications endpoint
       allOf:
@@ -2832,8 +2827,11 @@ components:
               type: array
               items:
                 $ref: '#/components/schemas/ProductSpec'
+    UpdateProductSpecResponse:
+      description: The updated product specification
+      $ref: '#/components/schemas/ProductSpec'
     GetProductSpecCategoriesResponse:
-      description: The response for the get product specification categories endpoint
+      description: The product specification categories
       allOf:
         - $ref: '#/components/schemas/BasePaginatedResponse'
         - type: object
@@ -2842,6 +2840,234 @@ components:
               type: array
               items:
                 $ref: '#/components/schemas/ProductSpecCategory'
+    GetProductSpecCategoryResponse:
+      description: The category of the product specification
+      allOf:
+        - $ref: '#/components/schemas/ProductSpecCategory'
+    AddProductSpecCategoryResponse:
+      description: The added category to the product specification
+      $ref: '#/components/schemas/ProductSpecCategory'
+    GetProductSpecCategoryFieldsResponse:
+      description: The fields of the category of the product specification
+      allOf:
+        - $ref: '#/components/schemas/BasePaginatedResponse'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/ProductSpecCategoryField'
+    GetProductSpecCategoryFieldResponse:
+      description: A field of the category of the product specification
+      $ref: '#/components/schemas/Field'
+    AddProductSpecCategoryFieldResponse:
+      description: The added field of the category of the product specification
+      $ref: '#/components/schemas/Field'
+    SetProductSpecCategoryFieldValueResponse:
+      description: The value of the field set
+    GetConsumersResponse:
+      description: The consumers
+      allOf:
+        - $ref: '#/components/schemas/BasePaginatedResponse'
+        - type: object
+          properties:
+            items:
+              type: array
+              items: '#/components/schemas/Consumer'
+    CreateConsumerResponse:
+      description: The created consumer
+    GetConsumerResponse:
+      description: A consumer
+      $ref: '#/components/schemas/Consumer'
+    UpdateConsumerResponse:
+      description: The updated consumer
+      $ref: '#/components/schemas/Consumer'
+    GetConsumerAddressesResponse:
+      description: The consumer addresses
+      allOf:
+        - $ref: '#/components/schemas/BasePaginatedResponse'
+        - type: object
+          properties:
+            items:
+              type: array
+              items: '#/components/schemas/Address'
+    CreateConsumerAddressResponse:
+      description: The created consumer address
+      $ref: '#/components/schemas/Address'
+    GetConsumerAddressResponse:
+      description: A consumer's address
+      $ref: '#/components/schemas/Address'
+    UpdateConsumerAddressResponse:
+      description: The updated consumer
+      $ref: '#/components/schemas/Consumer'
+    GetConsumerOrdersResponse:
+      description: The orders of the consumer
+      allOf:
+        - $ref: '#/components/schemas/BasePaginatedResponse'
+        - type: object
+          properties:
+            items:
+              type: array
+              items: '#/components/schemas/Order'
+    GetConsumerOrderResponse:
+      description: An order of the consumer
+      $ref: '#/components/schemas/Order'
+    GetCategoriesResponse:
+      description: The categories
+      allOf:
+        - $ref: '#/components/schemas/BasePaginatedResponse'
+        - type: object
+          properties:
+            items:
+              type: array
+              items: '#/components/schemas/Category'
+    CreateCategoryResponse:
+      description: The created category
+      $ref: '#/components/schemas/Category'
+    GetCategoryResponse:
+      description: A category
+      $ref: '#/components/schemas/Category'
+    UpdateCategoryResponse:
+      description: The updated category
+      $ref: '#/components/schemas/Category'
+    GetCategoryFieldsResponse:
+      description: The fields of the category
+      allOf:
+        - $ref: '#/components/schemas/BasePaginatedResponse'
+        - type: object
+          properties:
+            items:
+              type: array
+              items: '#/components/schemas/Field'
+    GetCategoryFieldResponse:
+      description: A field of the category
+      $ref: '#/components/schemas/Field'
+    AddFieldToCategoryResponse:
+      description: The added field to the category
+      $ref: '#/components/schemas/Field'
+    GetFieldsResponse:
+      description: The fields
+      allOf:
+        - $ref: '#/components/schemas/BasePaginatedResponse'
+        - type: object
+          properties:
+            items:
+              type: array
+              items: '#/components/schemas/Field'
+    CreateFieldResponse:
+      description: The created field
+      $ref: '#/components/schemas/Field'
+    GetFieldResponse:
+      description: A field
+      $ref: '#/components/schemas/Field'
+    UpdateFieldResponse:
+      description: The updated field
+      $ref: '#/components/schemas/Field'
+    GetProducersResponse:
+      description: The producers
+      allOf:
+        - $ref: '#/components/schemas/BasePaginatedResponse'
+        - type: object
+          properties:
+            items:
+              type: array
+              items: '#/components/schemas/Producer'
+    CreateProducerResponse:
+      description: The created producer
+      $ref: '#/components/schemas/Producer'
+    GetProducerResponse:
+      description: A producer
+      $ref: '#/components/schemas/Producer'
+    UpdateProducerResponse:
+      description: The updated producer
+      $ref: '#/components/schemas/Producer'
+    GetProducerProductsResponse:
+      description: The products of the producer
+      allOf:
+        - $ref: '#/components/schemas/BasePaginatedResponse'
+        - type: object
+          properties:
+            items:
+              type: array
+              items: '#/components/schemas/Product'
+    GetProducerProductResponse:
+      description: A product of the producer
+      $ref: '#/components/schemas/Product'
+    UpdateProducerProductResponse:
+      description: The updated product
+      $ref: '#/components/schemas/Product'
+    GetProductionUnitProductResponse:
+      description: A product of the production unit
+      $ref: '#/components/schemas/Product'
+    GetProductionUnitsResponse:
+      description: The production units
+      allOf:
+        - $ref: '#/components/schemas/BasePaginatedResponse'
+        - type: object
+          properties:
+            items:
+              type: array
+              items: '#/components/schemas/ProductionUnit'
+    AddProductionUnitResponse:
+      description: The added production unit
+      $ref: '#/components/schemas/ProductionUnit'
+    CreateProductionUnitResponse:
+      description: The created production unit
+      $ref: '#/components/schemas/ProductionUnit'
+    GetProductionUnitResponse:
+      description: A production unit
+      $ref: '#/components/schemas/ProductionUnit'
+    UpdateProductionUnitResponse:
+      description: The updated production unit
+      $ref: '#/components/schemas/ProductionUnit'
+    GetProductionUnitCarriersResponse:
+      description: The carriers
+      allOf:
+        - $ref: '#/components/schemas/BasePaginatedResponse'
+        - type: object
+          properties:
+            items:
+              type: array
+              items: '#/components/schemas/Carrier'
+    CreateProductionUnitCarrierResponse:
+      description: The created carrier
+      $ref: '#/components/schemas/Carrier'
+    GetProductionUnitCarrierResponse:
+      description: A carrier
+      $ref: '#/components/schemas/Carrier'
+    UpdateProductionUnitCarrierResponse:
+      description: The updated carrier
+      $ref: '#/components/schemas/Carrier'
+    GetShipmentResponse:
+      description: A shipment
+      $ref: '#/components/schemas/Shipment'
+    GetShipmentsResponse:
+      description: The shipments
+      allOf:
+        - $ref: '#/components/schemas/BasePaginatedResponse'
+        - type: object
+          properties:
+            items:
+              type: array
+              items: '#/components/schemas/Shipment'
+    GetShipmentEventsResponse:
+      description: The events of the shipment
+      allOf:
+        - $ref: '#/components/schemas/BasePaginatedResponse'
+        - type: object
+          properties:
+            items:
+              type: array
+              items: '#/components/schemas/ShipmentEvent'
+    CreateShipmentEventResponse:
+      description: The created event
+      $ref: '#/components/schemas/ShipmentEvent'
+
+
+
+
+
+
     Error:
       type: object
       properties:
