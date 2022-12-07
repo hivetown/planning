@@ -9,17 +9,17 @@
 #  use what was learnt from sequence diagrams
 openapi: '3.0.2'
 info:
-  title: OLANOME REST API
-  description: OLANOME API Schema blablalabaabalbablbabba
+  title: HiveTown
+  description: HiveTown API Specification
   termsOfService: http://swagger.io/terms/
   contact:
-    email: api@OLANOME.pt
+    email: api@hivetown.pt
   license:
     name: Apache 2.0
     url: http://www.apache.org/licenses/LICENSE-2.0.html
   version: 0.0.1
 servers:
-  - url: https://api.server.test/v1
+  - url: https://api.hivetown.pt/
 paths:
   /auth/login:
     post:

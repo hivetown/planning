@@ -2,7 +2,6 @@
 
 ```mermaid
 classDiagram
-
     ProducerGateway --|> Producer
     
     Producer "1" -- "*" ProductionUnit
@@ -20,7 +19,6 @@ classDiagram
     CarrierGateway --|> Carrier
     Carrier "*" -- "1" CarrierStatus
     
-    
     Cart "1" -- "*" CartItem
     CartItemGateway --|> CartItem
 
@@ -31,6 +29,7 @@ classDiagram
 
     OrderItemGateway --|> OrderItem
     Order "1" -- "*" OrderItem
+    Order "1" -- "*" Shipment
     OrderGateway --|> Order
 
     OrderItem "1" -- "1" ProducerProduct
