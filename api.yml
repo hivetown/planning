@@ -2434,7 +2434,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Product'
+                $ref: '#/components/schemas/ProducerProduct'
         '204':
           description: The product was already on the unit
         '401':
@@ -2796,13 +2796,6 @@ components:
         - $ref: '#/components/schemas/ShipmentEvent'
         - required:
             - TODO
-
-
-
-
-
-
-
     # Responses
     GetProductSpecsResponse:
       description: The response for the get products endpoint
@@ -2813,7 +2806,7 @@ components:
             items:
               type: array
               items:
-                $ref: '#/components/schemas/Product'
+                $ref: '#/components/schemas/ProducerProduct'
     GetProductSpecResponse:
       description: The response for the get product spec endpoint
       $ref: '#/components/schemas/ProductSpec'
@@ -2873,7 +2866,8 @@ components:
           properties:
             items:
               type: array
-              items: '#/components/schemas/Consumer'
+              items: 
+                $ref: '#/components/schemas/Consumer'
     CreateConsumerResponse:
       description: The created consumer
     GetConsumerResponse:
@@ -2890,7 +2884,8 @@ components:
           properties:
             items:
               type: array
-              items: '#/components/schemas/Address'
+              items:  
+                $ref: '#/components/schemas/Address'
     CreateConsumerAddressResponse:
       description: The created consumer address
       $ref: '#/components/schemas/Address'
@@ -2908,7 +2903,8 @@ components:
           properties:
             items:
               type: array
-              items: '#/components/schemas/Order'
+              items:
+                $ref: '#/components/schemas/Order'
     GetConsumerOrderResponse:
       description: An order of the consumer
       $ref: '#/components/schemas/Order'
@@ -2920,7 +2916,8 @@ components:
           properties:
             items:
               type: array
-              items: '#/components/schemas/Category'
+              items:
+                $ref: '#/components/schemas/Category'
     CreateCategoryResponse:
       description: The created category
       $ref: '#/components/schemas/Category'
@@ -2938,7 +2935,8 @@ components:
           properties:
             items:
               type: array
-              items: '#/components/schemas/Field'
+              items:
+                $ref: '#/components/schemas/Field'
     GetCategoryFieldResponse:
       description: A field of the category
       $ref: '#/components/schemas/Field'
@@ -2953,7 +2951,8 @@ components:
           properties:
             items:
               type: array
-              items: '#/components/schemas/Field'
+              items:
+                $ref: '#/components/schemas/Field'
     CreateFieldResponse:
       description: The created field
       $ref: '#/components/schemas/Field'
@@ -2971,7 +2970,8 @@ components:
           properties:
             items:
               type: array
-              items: '#/components/schemas/Producer'
+              items:
+                $ref: '#/components/schemas/Producer'
     CreateProducerResponse:
       description: The created producer
       $ref: '#/components/schemas/Producer'
@@ -2989,16 +2989,17 @@ components:
           properties:
             items:
               type: array
-              items: '#/components/schemas/Product'
+              items:
+                $ref: '#/components/schemas/ProducerProduct'
     GetProducerProductResponse:
       description: A product of the producer
-      $ref: '#/components/schemas/Product'
+      $ref: '#/components/schemas/ProducerProduct'
     UpdateProducerProductResponse:
       description: The updated product
-      $ref: '#/components/schemas/Product'
+      $ref: '#/components/schemas/ProducerProduct'
     GetProductionUnitProductResponse:
       description: A product of the production unit
-      $ref: '#/components/schemas/Product'
+      $ref: '#/components/schemas/ProducerProduct'
     GetProductionUnitsResponse:
       description: The production units
       allOf:
@@ -3007,7 +3008,8 @@ components:
           properties:
             items:
               type: array
-              items: '#/components/schemas/ProductionUnit'
+              items:
+                $ref: '#/components/schemas/ProductionUnit'
     AddProductionUnitResponse:
       description: The added production unit
       $ref: '#/components/schemas/ProductionUnit'
@@ -3028,7 +3030,8 @@ components:
           properties:
             items:
               type: array
-              items: '#/components/schemas/Carrier'
+              items:
+                $ref: '#/components/schemas/Carrier'
     CreateProductionUnitCarrierResponse:
       description: The created carrier
       $ref: '#/components/schemas/Carrier'
@@ -3049,7 +3052,8 @@ components:
           properties:
             items:
               type: array
-              items: '#/components/schemas/Shipment'
+              items:
+                $ref: '#/components/schemas/Shipment'
     GetShipmentEventsResponse:
       description: The events of the shipment
       allOf:
@@ -3058,15 +3062,11 @@ components:
           properties:
             items:
               type: array
-              items: '#/components/schemas/ShipmentEvent'
+              items:
+                $ref: '#/components/schemas/ShipmentEvent'
     CreateShipmentEventResponse:
       description: The created event
       $ref: '#/components/schemas/ShipmentEvent'
-
-
-
-
-
 
     Error:
       type: object
@@ -3076,22 +3076,91 @@ components:
           format: int32
         message:
           type: string
+    User:
+      type: object
+      properties:
+        id:
+          readOnly: true
+          type: integer
+          format: int64
+          example: 1
+        name:
+          type: string
+          example: Dom Sebastião
+        email:
+          type: string
+          example: d.sebastiao@portugal.pt
+        phone:
+          type: string
+          example: 912345678
+        vat:
+          type: string
+          example: 123456789
+        type:
+          type: string
+          enum:
+            - PRODUCER
+            - CONSUMER
+          example: PRODUCER
+
+    Consumer:
+      allOf:
+        - $ref: '#/components/schemas/User'
+        - type: object
+          properties:
+            type:
+              type: string
+              enum:
+                - CONSUMER
+              example: CONSUMER
+            # TODO figure out how to hide these fields from the consumer and only show them where needed
+            cart?:
+              $ref: '#/components/schemas/Cart'
+            orders?:
+              type: array
+              items:
+                $ref: '#/components/schemas/Order'
+            addresses?:
+              type: array
+              items:
+                $ref: '#/components/schemas/Address'
+    Producer:
+      allOf:
+        - $ref: '#/components/schemas/User'
+        - type: object
+          properties:
+            type:
+              type: string
+              enum:
+                - PRODUCER
+              example: PRODUCER
+            productionUnits:
+              type: array
+              items:
+                $ref: '#/components/schemas/ProductionUnit'
     Address:
       type: object
       properties:
         id:
+          readOnly: true
           type: integer
           format: int64
           example: 9
-        street:
+        door:
           type: string
-          example: Rua da Liberdade
+          example: 2
+        floor:
+          type: string
+          example: 1
         number:
           type: string
           example: 51
-        zip:
+        zipCode:
           type: string
           example: 2520-125
+        street:
+          type: string
+          example: Rua da Liberdade
         parish:
           type: string
           example: Ferrel
@@ -3104,9 +3173,6 @@ components:
         district:
           type: string
           example: Leiria
-        country:
-          type: string
-          example: Portugal
         latitude:
           type: number
           format: float
@@ -3115,132 +3181,135 @@ components:
           type: number
           format: float
           example: -9.323305
-        createdAt:
-          type: string
-          format: date-time
-          example: 2019-10-10T10:10:10.000Z
-        updatedAt:
-          type: string
-          format: date-time
-          example: 2019-10-10T10:10:10.000Z
-    User: 
+    ProductionUnit:
       type: object
       properties:
         id:
+          readOnly: true
           type: integer
           format: int64
-          example: 8
+          example: 1
         name:
           type: string
-          example: Cláudia
-        email:
-          type: string
-          example: claudia@sapo.pt
-        vat:
-          type: string
-          example: 234567890
-        level:
-          type: integer
-          example: 0
-        createdAt:
-          type: string
-          format: date-time
-          example: 2019-10-10T10:10:10.000Z
-        updatedAt:
-          type: string
-          format: date-time
-          example: 2019-10-10T10:10:10.000Z
-        addresses?:
-          type: array
-          items:
-            type: object
-            $ref: '#/components/schemas/UserAddress'
-        orders?:
-          type: array
-          items:
-            type: object
-            $ref: '#/components/schemas/Order'
-    UserAddress:
-      type: object
-      properties:
-        userId: 
-          type: integer
-          format: int64
-          example: 8
-        addressId: 
-          type: integer
-          format: int64
-          example: 9
-        address?:
-          type: object
+          example: Quinta da Alegria
+        address:
           $ref: '#/components/schemas/Address'
-    Order:
+        producer?:
+          $ref: '#/components/schemas/Producer'
+        products?:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProducerProduct'
+    Carrier:
       type: object
       properties:
-        consumerId: 
-          type: integer 
-          format: int64
-          example: 8
-        id: 
+        id:
+          readOnly: true
           type: integer
           format: int64
-          example: 9
-        totalPaid:
+          example: 1
+        licensePlate:
+          type: string
+          example: 99-99-AA
+        # TODO figure out how to hide these fields on requests and show on responses
+        status:
+          type: string
+          enum:
+            - AVAILABLE
+            - UNAVAILABLE
+          example: AVAILABLE
+        productionUnit?:
+          $ref: '#/components/schemas/ProductionUnit'
+    OrderItem:
+      type: object
+      properties:
+        id:
+          readOnly: true
+          type: integer
+          format: int64
+          example: 1
+        quantity:
+          type: integer
+          format: int32
+          example: 1
+        price:
           type: number
           format: float
           example: 10.99
-        createdAt:
-          type: string
-          format: date-time
-          example: 2019-10-10T10:10:10.000Z
-        updatedAt:
-          type: string
-          format: date-time
-          example: 2019-10-10T10:10:10.000Z
-        consumer?:
-          type: object
-          $ref: '#/components/schemas/User'
-        orderItems?:
+        product:
+          $ref: '#/components/schemas/ProducerProduct'
+        order?:
+          $ref: '#/components/schemas/Order'
+    Order:
+      type: object
+      properties:
+        id:
+          readOnly: true
+          type: integer
+          format: int64
+          example: 9
+        items:
           type: array
           items:
             type: object
             $ref: '#/components/schemas/OrderItem'
-    OrderItem:
+        shippingAddress:
+          $ref: '#/components/schemas/Address'
+        consumer?:
+          type: object
+          $ref: '#/components/schemas/User'
+    ShipmentEvent:
       type: object
       properties:
-        orderId: 
-          type: integer
-          format: int64
-          example: 9
-        productId: 
+        id:
+          readOnly: true
           type: integer
           format: int64
           example: 1
-        quantity: 
+        date:
+          type: string
+          format: date-time
+          example: 2019-10-10T10:10:10.000Z
+        status:
+          type: object
+          properties:
+            name:
+              type: string
+              example: In Transit
+            description:
+              type: string
+              example: The shipment is in transit
+        shipment?:
+          $ref: '#/components/schemas/Shipment'
+    Shipment:
+      type: object
+      properties:
+        id:
+          readOnly: true
           type: integer
+          format: int64
           example: 1
+        carrier:
+          $ref: '#/components/schemas/Carrier'
+        products?:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProducerProduct'
         order?:
-          type: object
           $ref: '#/components/schemas/Order'
-        product?:
-          type: object
-          $ref: '#/components/schemas/Product'
-    Product:
+        events?:
+          type: array
+          items:
+            $ref: '#/components/schemas/ShipmentEvent'
+    ProducerProduct:
       type: object
       properties:
-        id: 
+        id:
+          readOnly: true
           type: integer
           format: int64
           example: 1
-        producerId: 
-          type: integer
-          format: int64
-          example: 2
-        productSpecId: 
-          type: integer
-          format: int64
-          example: 3
-        price:
+        currentPrice:
           type: number
           format: float
           example: 10.99
@@ -3248,24 +3317,23 @@ components:
           type: string
           format: date-time
           example: 2019-10-10T10:10:10.000Z
-        createdAt:
-          type: string
-          format: date-time
-          example: 2019-10-10T10:10:10.000Z
-        updatedAt:
-          type: string
-          format: date-time
-          example: 2019-10-10T10:10:10.000Z
         producer?:
-          type: object
-          $ref: '#/components/schemas/User'
-        productSpec?:
-          type: object
+          $ref: '#/components/schemas/Producer'
+        productionUnit?:
+          $ref: '#/components/schemas/ProductionUnit'
+        specification?:
           $ref: '#/components/schemas/ProductSpec'
+        status:
+          type: string
+          enum:
+            - AVAILABLE
+            - SOLD_OUT
+          example: AVAILABLE
     ProductSpec:
       type: object
       properties:
         id: 
+          readOnly: true
           type: integer
           format: int64
           example: 3
@@ -3275,133 +3343,73 @@ components:
         description: 
           type: string
           example: Maçãs vermelhas
-        basePrice:
-          type: number
-          format: float
-          example: 10.99
-        # TODO unit?
-        # unit:
-        #   type: string
-        #   example: Kg
-        createdAt:
-          type: string
-          format: date-time
-          example: 2019-10-10T10:10:10.000Z
-        updatedAt:
-          type: string
-          format: date-time
-          example: 2019-10-10T10:10:10.000Z
-    ProductSpecCategory:
-      type: object
-      properties:
-        productSpeId: 
-          type: integer
-          format: int64
-          example: 3
-        categoryId: 
-          type: integer
-          format: int64
-          example: 1
-        productSpec?:
-          type: object
-          $ref: '#/components/schemas/ProductSpec'
-        category?:
-          type: object
-          $ref: '#/components/schemas/Category'
-    ProductSpecCategoryValue:
-      type: object
-      properties:
-        productSpecId: 
-          type: integer
-          format: int64
-          example: 3
-        fieldId: 
-          type: integer
-          format: int64
-          example: 1
-        value:
-          type: string
-          example: Vermelho
-        productSpec?:
-          type: object
-          $ref: '#/components/schemas/ProductSpec'
-        field?:
-          type: object
-          $ref: '#/components/schemas/Field'
+        images: 
+          type: array
+          items:
+            type: string
+            example: https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png
+        categories?:
+          type: array
+          items:
+            type: object
+            $ref: '#/components/schemas/ProductSpecCategory'
+        fields?:
+          type: array
+          items:
+            type: object
+            $ref: '#/components/schemas/ProductSpecField'
     Category:
       type: object
       properties:
         id: 
+          readOnly: true
           type: integer
           format: int64
           example: 1
         name: 
           type: string
           example: Fruta
-        parentCategoryId: 
-          type: integer
-          format: int64
-          example: 2
-        createdAt:
-          type: string
-          format: date-time
-          example: 2019-10-10T10:10:10.000Z
-        updatedAt:
-          type: string
-          format: date-time
-          example: 2019-10-10T10:10:10.000Z
-        parentCategory?:
+        parent?:
           type: object
           $ref: '#/components/schemas/Category'
-    FieldType:
-      type: string
-      enum:
-        - text
-        - number
-        - date
-        - boolean
-        - enum
+        fields?:
+          type: array
+          items:
+            type: object
+            $ref: '#/components/schemas/Field'
     Field:
       type: object
       properties:
         id: 
+          readOnly: true
           type: integer
           format: int64
           example: 1
         name: 
           type: string
           example: Cor
+        unit?:
+          type: string
+          example: KG
         type: 
-          $ref: '#/components/schemas/FieldType'
-        createdAt:
           type: string
-          format: date-time
-          example: 2019-10-10T10:10:10.000Z
-        updatedAt:
-          type: string
-          format: date-time
-          example: 2019-10-10T10:10:10.000Z
-    CategoryField:
-      type: object
-      properties:
-        categoryId: 
-          type: integer
-          format: int64
-          example: 1
-        fieldId: 
-          type: integer
-          format: int64
-          example: 2
-        category?:
-          type: object
-          $ref: '#/components/schemas/Category'
-        field?:
-          type: object
-          $ref: '#/components/schemas/Field'
+          enum:
+            - STRING
+            - INTEGER
+            - FLOAT
+            - BOOLEAN
+            - DATE
+          example: STRING
+        possibleValues?:
+          type: array
+          items:
+            type: object
+            $ref: '#/components/schemas/FieldPossibleValue'
     FieldPossibleValue:
       type: object
       properties:
-        fieldId: 
+        id: 
+          readOnly: true
           type: integer
           format: int64
           example: 1
@@ -3411,4 +3419,30 @@ components:
         field?:
           type: object
           $ref: '#/components/schemas/Field'
-        # TODO deleted at?
+    Cart:
+      type: object
+      properties:
+        items?:
+          type: array
+          items:
+            type: object
+            $ref: '#/components/schemas/CartItem'
+        consumer?:
+          type: object
+          $ref: '#/components/schemas/User'
+    CartItem:
+      type: object
+      properties:
+        id:
+          readOnly: true
+          type: integer
+          format: int64
+          example: 1
+        quantity:
+          type: integer
+          format: int64
+          example: 1
+        product:
+          $ref: '#/components/schemas/ProducerProduct'
+        cart?:
+          $ref: '#/components/schemas/Cart'

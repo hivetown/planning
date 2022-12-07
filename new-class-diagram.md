@@ -128,6 +128,7 @@ classDiagram
 
     class ProductionUnit {
         -number id
+        -string name
         -Address address
         -Producer producer
         -List~Carrier~ carriers
@@ -155,8 +156,6 @@ classDiagram
         +delete(Carrier carrier) void
     }
 
-
-
     class CarrierStatus {
         <<enum>>
         +AVAILABLE
@@ -178,7 +177,6 @@ classDiagram
         +delete(OrderItem orderItem) void
     }
 
-
     class Order {
         -number id
         -Consumer consumer
@@ -197,12 +195,10 @@ classDiagram
         +delete(Order order) void
     }
 
-
-
     class ShipmentEvent {
         -number id
         -Date date
-        -Order order
+        -Shipment shipment
         -ShipmentStatus status
         -Address address
     }
@@ -212,6 +208,21 @@ classDiagram
         +insert(ShipmentEvent shipmentEvent) ShipmentEvent
         +update(ShipmentEvent shipmentEvent) ShipmentEvent
         +delete(ShipmentEvent shipmentEvent) void
+    }
+
+    class Shipment {
+        -number id
+        -Order order
+        -Carrier carrier
+        -List~ShipmentEvent~ events
+        -List~ProducerProduct~ products
+    }
+
+    class ShipmentGateway {
+        +get(number id) Shipment
+        +insert(Shipment shipment) Shipment
+        +update(Shipment shipment) Shipment
+        +delete(Shipment shipment) void
     }
 
     %% TODO representa os tipos de shipment status: "em preparação", "em transporte", "entregue", etc
@@ -235,7 +246,7 @@ classDiagram
         -number currentPrice
         -Date productionDate
         -Producer producer
-        -ProductionUnit
+        -ProductionUnit productionUnit
         -ProductSpec specification
         -ProductStatus status
     }
@@ -323,6 +334,7 @@ classDiagram
     class Cart {
         %% o id é o mesmo que o do consumidor
         -Consumer consumer
+        -List~CartItem~ items
         +addProduct(ProducerProduct product, number quantity) void
     }
 
@@ -349,32 +361,11 @@ classDiagram
         +delete(CartItem cartItem) void
     }
 
-    class ShipmentProducts{
-        -List~ProducerProduct~ products
-        -Shipment shipment
-    }
-
-    class CartItemFactory {
-        +create(Cart cart, ProducerProduct product, number quantity) CartItem
-    }
-
-    class ShipmentEventFactory {
-        +create(Order order, ShipmentStatus status, Address address, Date date) ShipmentEvent
-    }
-
     class OrderFactory {
         +createFromCart(Cart cart) Order
     }
 
     class OrderItemFactory {
         +create(Order order, ProducerProduct product, number quantity) OrderItem
-    }
-
-    class CarrierFactory {
-        +create(Producer producer, string name, string ...etc) Carrier
-    }
-
-    class ProductionUnitFactory {
-        +create(Producer producer, Address address) ProductionUnit
     }
 ```
