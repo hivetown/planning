@@ -178,7 +178,6 @@ sequenceDiagram
     participant API
     participant CaG as CartGateway
     participant PPG as ProducerProductGateway
-    participant CaIF as CartItemFactory
     participant CaI as CartItem
     participant CaIG as CartItemGateway
 
@@ -189,15 +188,12 @@ sequenceDiagram
     PPG -->> API: producerProduct
 
     Note right of A: Alice wants to add the ProducerProduct with ID 1 to her cart
-    API ->> CaIF: create(cart, producerProduct)
 
-    CaIF ->> CaI: new(cart, producerProduct, quantity)
-    CaI -->> CaIF: cartItem
+    API ->> CaI: new(cart, producerProduct, quantity)
+    CaI -->> API: cartItem
 
-    CaIF ->> CaIG: insert(cartItem)
-    CaIG -->> CaIF: savedCartItem
-
-    CaIF -->> API: savedCartItem
+    API ->> CaIG: insert(cartItem)
+    CaIG -->> API: savedCartItem
     
     API -->> A: savedCartItem
 ```
@@ -255,12 +251,10 @@ Iremos apenas contemplar a criação de um `Consumer`, mas o processo é idênti
 sequenceDiagram
     actor A as Alice
     participant API
-    participant CF as ConsumerFactory
     participant C as Consumer
     participant CG as ConsumerGateway
     participant Au as AuthService
     participant F as Firebase
-    participant CredF as CredentialFactory
     participant Cred as Credential
     participant CredG as CredentialGateway
     participant EAu as ExternalAuthGateway
@@ -268,15 +262,11 @@ sequenceDiagram
     Note right of A: First, we show the user creation form
     A ->> API: POST /consumers
 
-    API ->> CF: create({name, email, ...})
+    API ->> C: new({name, email, ...})
+    C -->> API: consumer
 
-    CF ->> C: new({name, email, ...})
-    C -->> CF: consumer
-
-    CF ->> CG: insert(consumer)
-    CG -->> CF: savedConsumer
-
-    CF -->> API: savedConsumer
+    API ->> CG: insert(consumer)
+    CG -->> API: savedConsumer
 
     API ->> Au: createAccessToken(consumer)
     Au -->> API: temporaryAccessToken
@@ -510,8 +500,8 @@ sequenceDiagram
     deactivate C
 
     loop for each cartItem.product
-        OF ->> OIF: create(order, product)
-        OIF ->> OI: new(order, product)
+        OF ->> OIF: createFromCartItem(order, cartItem)
+        OIF ->> OI: new(order, cartItem)
         OI -->> OIF: orderItem
         OIF ->> OIG: insert(orderItem)
         OIG -->> OIF: insertedOrderItem
@@ -647,10 +637,8 @@ Notas de implementação: Uso do padrão ***Strategy*** Criar uma interface `Not
 ```mermaid
 sequenceDiagram
     actor S as System
-    participant SEF as ShipmentEventFactory
     participant SE as ShipmentEvent
     participant SEG as ShipmentEventGateway
-    participant NF as NotificationFactory
     participant N as Notification
     participant NFG as NotificationGateway
     %% TODO we need user
@@ -661,26 +649,22 @@ sequenceDiagram
     participant EG as EmailGateway
 
     Note right of S: A System component makes a ShipmentEvent
-    S ->> SEF: create()
-    SEF ->> SE: new({orderId, status, address, etc})
+    S ->> SE: new({orderId, status, address, etc})
     activate SE
-    SE -->> SEF: shipmentEvent
+    SE -->> S: shipmentEvent
 
-    SEF ->> SEG: insert(shipmentEvent)
-    SEG -->> SEF: savedShipmentEvent
-    SEF -->> S: savedShipmentEvent
+    S ->> SEG: insert(shipmentEvent)
+    SEG -->> S: savedShipmentEvent
     deactivate SE
 
     # TODO confirmar que notificações são criadas doutras formas
-    SEF ->> NF: createShipmentNotification(shippingEvent, subscriber)
-
-    NF ->> N: new({shipmentEvent, subscriber})
+    S ->> N: new({shipmentEvent, subscriber})
 
     activate N
-    N -->> NF: notification
+    N -->> S: notification
     
-    NF ->> NFG: insert(notification)
-    NFG -->> NF: savedNotification
+    S ->> NFG: insert(notification)
+    NFG -->> S: savedNotification
     
     Note right of N: Deliver notifications
 
@@ -755,23 +739,19 @@ A criação de uma unidade de produção é feita através de um *endpoint* pró
 sequenceDiagram
     actor A as Alice
     participant API as API
-    participant PUF as ProductionUnitFactory
     participant PU as ProductionUnit
     participant PUG as ProductionUnitGateway
 
     A ->> API: POST /producers/{producerId}/units
 
-    API ->> PUF: create(producer, {name, description, etc})
-
-    PUF ->> PU: new(producer, {name, description, etc})
+    API ->> PU: new(producer, {name, description, etc})
     activate PU
-    PU -->> PUF: unit
+    PU -->> API: unit
 
-    PUF ->> PUG: insert(unit)
-    PUG -->> PUF: savedUnit
+    API ->> PUG: insert(unit)
+    PUG -->> API: savedUnit
     deactivate PU
 
-    PUF -->> API: savedUnit
     API -->> A: savedUnit
 ```
 
@@ -831,23 +811,19 @@ De forma semelhante ao [RF-18](#rf-18-criação-gestão-e-remoção-de-unidade-d
 sequenceDiagram
     actor A as Alice
     participant API as API
-    participant PF as ProductFactory
     participant P as Product
     participant PG as ProductGateway
 
     A ->> API: POST /producers/{producerId}/products
 
-    API ->> PF: create(producer, {name, description, etc})
-
-    PF ->> P: new(producer, {name, description, etc})
+    API ->> P: new(producer, {name, description, etc})
     activate P
-    P -->> PF: product
+    P -->> API: product
 
-    PF ->> PG: insert(product)
-    PG -->> PF: savedProduct
+    API ->> PG: insert(product)
+    PG -->> API: savedProduct
     deactivate P
 
-    PF -->> API: savedProduct
     API -->> A: savedProduct
 ```
 
@@ -861,7 +837,6 @@ sequenceDiagram
     participant API as API
     participant PG as ProductGateway
     participant P as Product
-    participant PPF as ProductPriceFactory
     participant PP as ProductPrice
     participant PPG as ProductPriceGateway
 
@@ -875,14 +850,12 @@ sequenceDiagram
     API ->> P: update({name, description, etc})
     
     alt price is changed
-        P ->> PPF: create(product, {price})
-        PPF ->> PP: new({product, currentPrice})
+        P ->> PP: new({product, currentPrice})
         activate PP
-        PP -->> PPF: productPrice
-        PPF ->> PPG: create(productPrice)
-        PPG -->> PPF: savedProductPrice
+        PP -->> P: productPrice
+        P ->> PPG: create(productPrice)
+        PPG -->> P: savedProductPrice
         deactivate PP
-        PPF -->> P: savedProductPrice
 
         Note right of P: price = currentPrice
     end
@@ -996,43 +969,38 @@ sequenceDiagram
 
 ## RF-21: Criação, edição, e remoção de veículo de transporte de produtos
 
-<!-- TODO perguntar se é assim ou diretamente na unidade de produção -->
-
 Bastante semelhante a [RF-18](#rf-18-criação-gestão-e-remoção-de-unidade-de-produção).
 
 Separando em três partes: criação, gestão, e remoção.
 
 ### Criação
 
-De forma semelhante ao [RF-18](#rf-18-criação-gestão-e-remoção-de-unidade-de-produção), a criação de um veículo de transporte de produtos é feita através de um `POST` a `/producers/{producerId}/carriers`
+De forma semelhante ao [RF-18](#rf-18-criação-gestão-e-remoção-de-unidade-de-produção), a criação de um veículo de transporte de produtos é feita através de um `POST` a `/producers/{producerId}/units/{unitId}/carriers`
 
 ```mermaid
 sequenceDiagram
     actor A as Alice
     participant API as API
-    participant CF as CarrierFactory
     participant CG as CarrierGateway
     participant C as Carrier
 
-    A ->> API: POST /producers/{producerId}/carriers
+    A ->> API: POST /producers/{producerId}/units/{unitId}/carriers
 
     Note right of API: We create the carrier
-    API ->> CF: createCarrier(producerId, {name, description, etc})
-    CF ->> C: new(producerId, {name, description, etc})
+    API -> C: new(producerId, unitId, {name, description, etc})
     activate C
-    C -->> CF: carrier
+    C -->> API: carrier
 
-    CF ->> CG: insert(carrier)
-    CG -->> CF: savedCarrier
+    API ->> CG: insert(carrier)
+    CG -->> API: savedCarrier
     deactivate C
-    CF -->> API: savedCarrier
 
     API -->> A: savedCarrier
 ```
 
 ### Edição
 
-De forma semelhante ao [RF-18](#rf-18-criação-gestão-e-remoção-de-unidade-de-produção), a edição de um *carrier* faz-se através de um `PUT` a `/producers/{producerId}/carriers/{carrierId}`
+De forma semelhante ao [RF-18](#rf-18-criação-gestão-e-remoção-de-unidade-de-produção), a edição de um *carrier* faz-se através de um `PUT` a `/producers/{producerId}/units/{unitId}/carriers/{carrierId}`
 
 ```mermaid
 sequenceDiagram
@@ -1040,7 +1008,7 @@ sequenceDiagram
     participant API
     participant CG as CarrierGateway
 
-    A ->> API: PUT /producers/{producerId}/carriers/{carrierId}
+    A ->> API: PUT /producers/{producerId}/units/{unitIt}/carriers/{carrierId}
 
     API ->> CG: get(carrierId)
     CG -->> API: carrier
@@ -1055,7 +1023,7 @@ sequenceDiagram
 
 ### Remoção
 
-De forma semelhante ao [RF-18](#rf-18-criação-gestão-e-remoção-de-unidade-de-produção), a remoção de um *carrier* faz-se através de um `DELETE` a `/producers/{producerId}/carriers/{carrierId}`
+De forma semelhante ao [RF-18](#rf-18-criação-gestão-e-remoção-de-unidade-de-produção), a remoção de um *carrier* faz-se através de um `DELETE` a `/producers/{producerId}/units/{unitId}/carriers/{carrierId}`
 
 ```mermaid
 sequenceDiagram
@@ -1063,7 +1031,7 @@ sequenceDiagram
     participant API as API
     participant CG as CarrierGateway
 
-    A ->> API: DELETE /producers/{producerId}/carriers/{carrierId}
+    A ->> API: DELETE /producers/{producerId}/units/{unitId}/carriers/{carrierId}
 
     API ->> CG: delete(carrierId)
     CG -->> API: deletedCarrier

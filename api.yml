@@ -1,4 +1,5 @@
 # TODO
+#  confirmar se todos os gateways têm CRUD
 #  fill with examples
 #  show created and updated dates?
 #  allow carrier to create a new shipment (?????? n me lembro pq)
@@ -2570,7 +2571,7 @@ components:
       name: Authorization
   parameters:
     productSpecId:
-      name: Product Specification ID
+      name: productSpecId
       in: path
       description: The ID of the ProductSpec entity
       required: true
@@ -2580,7 +2581,7 @@ components:
         example: 1
         minimum: 1
     producerProductId:
-      name: Producer Product ID
+      name: producerProductId
       in: path
       description: The ID of a ProducerProduct entity
       required: true
