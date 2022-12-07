@@ -55,7 +55,7 @@ classDiagram
     ShipmentEventGateway --|> ShipmentEvent
     ShipmentStatusGateway --|> ShipmentStatus
 
-class User {
+    class User {
         <<abstract>>
         -number id
         -string name
