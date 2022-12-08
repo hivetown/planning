@@ -2,60 +2,67 @@
 
 ```mermaid
 classDiagram
-    ProducerGateway --|> Producer
-    
-    Producer "1" -- "*" ProductionUnit
-    Producer "*" -- "1" UserType
-    ProductionUnitGateway --|> ProductionUnit
+    direction LR
 
-    ConsumerGateway --|> Consumer
-    CartGateway --|> Cart
-    Consumer "*" -- "1" UserType
-    Consumer "1" -- "*" Order
-    Consumer "1" -- "1" Cart
-    
-    ProductionUnit "1" -- "*" ProducerProduct
-    ProductionUnit "1" -- "*" Carrier
-    CarrierGateway --|> Carrier
-    Carrier "*" -- "1" CarrierStatus
-    
-    Cart "1" -- "*" CartItem
-    CartItemGateway --|> CartItem
-
-    User <|-- Consumer
+    UserType --|> User
     User <|-- Producer
-    User "*" -- "*" Address
-    AddressGateway --|> Address
+    Consumer --|> User
+    ConsumerGateway --|> Consumer
+    Consumer --|> Address
+    ProducerGateway --|> Producer
 
-    OrderItemGateway --|> OrderItem
-    Order "1" -- "*" OrderItem
-    Order "1" -- "*" Shipment
-    OrderGateway --|> Order
+    Address <|-- AddressGateway
 
-    OrderItem "1" -- "1" ProducerProduct
-    ProducerProductGateway --|> ProducerProduct
-    ProductSpecGateway --|> ProductSpec
-    ProducerProduct "*" -- "1" ProductSpec
-
-    ShipmentProducts "1" -- "*" ProducerProduct
-    ShipmentEvent "1" -- "1" ShipmentProducts
-    
-    FieldGateway --|> Field
-    ProductSpec "*" -- "*" Field
-    ProductSpec "*" -- "*" Category
-    CategoryGateway --|> Category
-
-    ProducerProduct "*" -- "1" ProductStatus
-
-    Field "*" -- "1" FieldType
-    Category "*" -- "1" Category
-    Category "*" -- "*" Field
-    Field "1" -- "*" FieldPossibleValue
-
-    Order "1" -- "*" ShipmentEvent
-    ShipmentEvent "*" -- "1" ShipmentStatus
-    ShipmentEventGateway --|> ShipmentEvent
+    ShipmentGateway --|> Shipment
+    Order <|-- Shipment
+    Shipment --|> ShipmentEvent
+    ShipmentEvent <|-- ShipmentEventGateway
+    ShipmentEvent <|-- ShipmentStatus
     ShipmentStatusGateway --|> ShipmentStatus
+    Address <|-- ShipmentEvent
+    CarrierStatus <|-- Carrier
+    CarrierGateway --|> Carrier
+    Shipment --|> Carrier
+    Carrier --|> ProductionUnit
+    Order <|-- OrderGateway
+
+    ProductionUnit <|-- ProductionUnitGateway
+    Producer --|> ProductionUnit
+
+    ProducerProductGateway --|> ProducerProduct
+    ProducerProduct --|> Producer
+    ProducerProductStatus <|-- ProducerProduct
+
+    OrderItem <|-- OrderItemGateway
+
+    ProducerProduct --|> ProductSpec
+    ProductSpec <|-- ProductSpecGateway
+
+    CategoryGateway --|> Category
+    ProductSpec <|-- ProductSpecCategory
+    ProductSpecCategory "1" -- "*" ProductSpecField
+    ProductSpecCategory "*" -- "1" Category
+    Field "*" -- "*" Category
+    Category "1" -- "*" Category
+    Field -- FieldType
+    ProductSpecField "*" -- "*" Field
+    FieldGateway --|> Field
+    ProductSpecFieldGateway --|> ProductSpecField
+    FieldPossibleValue "*" -- "1" Field
+    FieldPossibleValueGateway --|> FieldPossibleValue
+
+    OrderItem <|-- OrderItemFactory
+    Consumer --|> Cart
+    ProducerProduct --|> CartItem
+    Cart <|-- CartItem
+    CartItem <|-- CartItemGateway
+    CartGateway --|> Cart
+
+    OrderFactory --|> Order
+    Order <|-- OrderItem
+    OrderItem --|> ProducerProduct
+    Consumer --|> Order
+    Order <|-- Address
 
     class User {
         <<abstract>>
@@ -67,7 +74,6 @@ classDiagram
         -UserType type
         
         +canLogin() boolean
-        %% TODO separate table?
         +getNotificationPreferences() unknown
     }
 
@@ -224,7 +230,7 @@ classDiagram
         +delete(Shipment shipment) void
     }
 
-    %% TODO representa os tipos de shipment status: "em preparação", "em transporte", "entregue", etc
+    %% representa os tipos de shipment status: "em preparação", "em transporte", "entregue", etc
     class ShipmentStatus {
         -number id
         -string name
@@ -232,7 +238,6 @@ classDiagram
     }
 
     %% TODO: necessário? só se for para o admin
-    %% Só se for para a BD  
     class ShipmentStatusGateway {
         +get(number id) ShipmentStatus
         +insert(ShipmentStatus shipmentStatus) ShipmentStatus
@@ -247,7 +252,7 @@ classDiagram
         -Producer producer
         -ProductionUnit productionUnit
         -ProductSpec specification
-        -ProductStatus status
+        -ProducerProductStatus status
     }
 
     class ProducerProductGateway {
@@ -265,7 +270,6 @@ classDiagram
         -string description
         -List~string~ images
         -List~Category~ categories
-        %% TODO fieldvalues
         -List~Field~ fields
         +compare(ProductSpec other)
     }
@@ -279,7 +283,7 @@ classDiagram
         +delete(ProductSpec productSpec) void
     }
 
-    class ProductStatus {
+    class ProducerProductStatus {
         <<enum>>
         +AVAILABLE
         +SOLD_OUT
@@ -330,8 +334,8 @@ classDiagram
         +ENUM
     }
 
+    %% o id é o mesmo que o do consumidor
     class Cart {
-        %% o id é o mesmo que o do consumidor
         -Consumer consumer
         -List~CartItem~ items
         +addProduct(ProducerProduct product, number quantity) void
@@ -344,8 +348,8 @@ classDiagram
         +delete(Cart cart) void
     }
 
+    %% tecnicamente é uma combinação dos ids do producerProduct e do cart
     class CartItem {
-        %% tecnicamente é uma combinação dos ids do producerProduct e do cart
         -number id
         -number quantity
         -ProducerProduct product
@@ -366,5 +370,24 @@ classDiagram
 
     class OrderItemFactory {
         +create(Order order, ProducerProduct product, number quantity) OrderItem
+    }
+
+    class ProductSpecCategory {
+        -ProductSpec spec
+        -Category category
+        -List~ProductSpecField~ fields
+    }
+
+    class ProductSpecField {
+        -ProductSpec spec
+        -Field field
+        -unknown value
+    }
+
+    class ProductSpecFieldGateway {
+        +get(ProductSpec spec, Field field) ProductSpecField
+        +insert(ProductSpecField productSpecField) ProductSpecField
+        +update(ProductSpecField productSpecField) ProductSpecField
+        +delete(ProductSpecField productSpecField) void
     }
 ```
