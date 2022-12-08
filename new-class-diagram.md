@@ -325,6 +325,13 @@ classDiagram
         +getValue() String
     }
 
+    class FieldPossibleValueGateway {
+        +get(Field field, String value) FieldPossibleValue
+        +insert(FieldPossibleValue fieldPossibleValue) FieldPossibleValue
+        +update(FieldPossibleValue fieldPossibleValue) FieldPossibleValue
+        +delete(FieldPossibleValue fieldPossibleValue) void
+    }
+
     class FieldType{
         <<enum>>
         +TEXT
