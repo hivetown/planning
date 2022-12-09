@@ -1,12 +1,3 @@
-# TODO
-#  confirmar se todos os gateways têm CRUD
-#  fill with examples
-#  show created and updated dates?
-#  allow carrier to create a new shipment (?????? n me lembro pq)
-#  shipment details
-#  figure out if we'll use PUT or PATCH for updating resources
-#  use a better way to document errors?
-#  use what was learnt from sequence diagrams
 openapi: '3.0.2'
 info:
   title: HiveTown
@@ -2849,7 +2840,7 @@ components:
             items:
               type: array
               items:
-                $ref: '#/components/schemas/ProductSpecCategoryField'
+                $ref: '#/components/schemas/ProductSpecField'
     GetProductSpecCategoryFieldResponse:
       description: A field of the category of the product specification
       $ref: '#/components/schemas/Field'
@@ -3353,11 +3344,32 @@ components:
           items:
             type: object
             $ref: '#/components/schemas/ProductSpecCategory'
+    ProductSpecCategory:
+      type: object
+      properties:
+        category: 
+          type: object
+          $ref: '#/components/schemas/Category'
+        spec?:
+          type: object
+          $ref: '#/components/schemas/ProductSpec'
         fields?:
           type: array
           items:
             type: object
             $ref: '#/components/schemas/ProductSpecField'
+    ProductSpecField:
+      type: object
+      properties:
+        value:
+          type: string
+          example: Vermelho
+        field: 
+          type: object
+          $ref: '#/components/schemas/Field'
+        spec?:
+          type: object
+          $ref: '#/components/schemas/ProductSpec'
     Category:
       type: object
       properties:

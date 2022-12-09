@@ -269,8 +269,7 @@ classDiagram
         -string name
         -string description
         -List~string~ images
-        -List~Category~ categories
-        -List~Field~ fields
+        -List~ProductSpecCategory~ categories
         +compare(ProductSpec other)
     }
 

@@ -26,14 +26,7 @@
 classDiagram
     %% TB is also readable
     direction LR
-    Continent "1" -- "*" Country
-    Country "1" -- "*" District
-    District "1" -- "*" City
-    City "1" -- "*" County
-    County "1" -- "*" Parish
-    Parish "1" -- "*" Street
-    Order "*" -- "1" Coupon
-    Street "1" -- "*" Address
+    
     DeliveryStatus "1" -- "*" DeliveryStatusUpdate
     Address "1" -- "*" DeliveryStatusUpdate
     DeliveryStatusUpdate "*" -- "1" Order
