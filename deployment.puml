@@ -1,0 +1,86 @@
+@startuml
+
+' Client to Infrastructure
+ClientBrowser -- DNS : dns
+ClientBrowser -- Pages : https
+ClientBrowser -- Proxy : https
+ClientBrowser -- FirebaseAuth : https
+ClientBrowser -- Stripe : https
+Proxy -- Firewall : https
+' Infrastructure comunications
+Firewall -- LoadBalancer : https
+LoadBalancer -- RestAPI : https
+LoadBalancer -- Gateway : https
+RestAPI -- RabbitMQ : http?
+Gateway -- RabbitMQ : http?
+' TODO: Don't really know about this???
+RestAPI -- Database : tcp
+' Infrastructure to external
+RestAPI -- FirebaseAuth : https
+RestAPI -- Stripe : https
+
+
+' A Client of the application's interactions with the system
+node <b>Client</b> <<device>> as Client {
+    node <<browser>> as ClientBrowser {
+        
+    }
+}
+
+cloud Infrastructure {
+    node Firewall <<DMZ>> {
+        collections ComputeEngine as FirewallCE
+    }
+
+    frame Intranet {
+        node LoadBalancer {
+            collections ComputeEngine as LoadBalancerCE
+        }
+
+        node RestAPI {
+            collections ComputeEngine as RestAPICE
+        }
+
+        node Gateway {
+            collections ComputeEngine as GatewayCE
+        }
+
+        queue RabbitMQ {
+            collections ComputeEngine as RabbitMQCE
+        }
+
+        database Database {
+            collections ComputeEngine as DatabaseCE
+        }
+    }
+}
+
+frame Cloudflare {
+    node DNS {
+    }
+
+    node Proxy {
+    }
+
+    ' We distribute and deliver the WebApp through CloudflarePages
+    node Pages {
+        collections WebApp
+    }
+}
+
+' Our authentication provider
+node FirebaseAuth {
+    node RestAPI as FirebaseRestAPI {
+
+    }
+}
+
+' Our banking provider
+node Stripe {
+    node RestAPI as StripeRestAPI {
+
+    }
+}
+
+
+@enduml
