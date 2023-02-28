@@ -1,80 +1,139 @@
 @startuml
 
-' Client to Infrastructure
-ClientBrowser -- StaticContent : https
-ClientBrowser -- DNS : dns
-ClientBrowser -- Proxy : https
-ClientBrowser -- FirebaseAuth : https
-ClientBrowser -- Stripe : https
-Proxy -- Firewall : https
-' Infrastructure comunications
-Firewall -- LoadBalancer : https
-LoadBalancer -- RestAPI : https
-LoadBalancer -- WebServer : https
-' TODO: Don't really know about this???
-RestAPI -- Database : tcp
-' Infrastructure to external
-RestAPI -- FirebaseAuth : https
-RestAPI -- Stripe : https
-RestAPI -- StaticContent : https
+actor Client
+
+node DNS
+
+DNS <- Client : dns lookup
+DNS .> Client : IP address
 
 
-' A Client of the application's interactions with the system
-node <b>Client</b> <<device>> as Client {
-    node <<browser>> as ClientBrowser {
-        
-    }
-}
+frame Infrastructure {
 
-cloud Infrastructure {
-    node Firewall <<DMZ>> {
-        collections ComputeEngine as FirewallCE
-    }
+    frame "Load Balancing" as LB {
+        interface "Public IP (Inboud)" as LBPublicIP
+        Client --> LBPublicIP : http(s)
 
-    frame Intranet {
-        node LoadBalancer {
-            collections ComputeEngine as LoadBalancerCE
+        node "Active LB" as ActiveLB {
+            component HAProxy as ALBHAProxy {
+
+            }
+            LBPublicIP ...> PLBHAProxy
+
+            component Keepalived as ALBKeepalived {
+
+            }
         }
 
-        node RestAPI {
-            collections ComputeEngine as RestAPICE
+        node "Passive LB" as PassiveLB {
+            component HAProxy as PLBHAProxy {
+
+            }
+            LBPublicIP --> ALBHAProxy
+
+            component Keepalived as PLBKeepalived {
+
+            }
         }
 
-        node WebServer {
-            collections ComputeEngine as WebServerCE
-        }
+        ALBKeepalived --> PLBKeepalived : VRRP
+        PLBKeepalived --> ALBKeepalived : VRRP
 
-        database Database {
-            collections ComputeEngine as DatabaseCE
-        }
+        interface "Internal" as LBInternal
+
+        ALBHAProxy --> LBInternal : http(s)
+        PLBHAProxy ..> LBInternal : http(s)
+
+        note bottom of PassiveLB
+            <b>Active-Passive</b>
+            ---
+            PassiveLB will take over if ActiveLB fails
+            healthcheck by keepalived through VRRP
+
+            On takeover, PassiveLB will become ActiveLB,
+            exchanging the floating IP address
+            ___
+            Having more than one Passive LB makes
+            the system more resilient. TODO?
+        end note
     }
-}
 
-frame Cloudflare {
-    node DNS {
+    ' frame "Service Discovery" as SD {
+    '     node "Leader" as SDLeader {
+    '     }
+
+    '     node "Follower 1" as SDFollower1 {
+    '     }
+
+    '     node "Follower 2" as SDFollower2 {
+    '     }
+
+    '     SDFollower1 -> SDLeader : Replication
+    '     SDFollower1 <. SDLeader : TCP/8300
+    '     SDLeader <- SDFollower2 : Replication
+    '     SDLeader .> SDFollower2 : TCP/8300
+    ' }
+
+    ' LB -[hidden]- SD
+
+    frame "Web Servers" as WS {
+        node "Web Server 1" as WS1
+        node "Web Server 2" as WS2
+
+        interface "Database" as WSDatabase
+        WS1 --> WSDatabase : http(s)
+        WS2 --> WSDatabase : http(s)
+
+        note as WSNote
+            <b>Web Servers</b>
+            ---
+            More servers can be added
+            to increase the capacity
+        end note
+
+        WS1 -[hidden] WSNote
+        WS2 -[hidden] WSNote
     }
 
-    node Proxy {
+    LBInternal --> WS1 : http(s)
+    LBInternal --> WS2 : http(s)
+
+    frame "Database" as DB {
+        node "Slave 1" as DBSlave1
+        node "Master" as DBMaster
+        node "Slave 2" as DBSlave2
+
+        DBSlave1 <- DBMaster : Replication
+        DBMaster -> DBSlave2 : Replication
+
+        node "Backup 1" as DBBackup1
+        node "Backup 2" as DBBackup2
+
+        DBSlave1 --> DBBackup1 : Backup
+        DBSlave2 --> DBBackup2 : Backup
+        note left of DBBackup1
+            <b>Backup</b>
+            ---
+            Backup is done on
+            the slaves via mysqldump
+            on a regular basis
+            through cron jobs
+        end note
+
+        note as DBNote
+            <b>Master Slave replication</b>
+            ---
+            MySQL Replication
+        end note
+
+        DBMaster .. DBNote
+        DBSlave1 .. DBNote
+        DBSlave2 .. DBNote
     }
-}
 
-' Our authentication provider
-node FirebaseAuth {
-    node RestAPI as FirebaseRestAPI {
-
-    }
-}
-
-' Our banking provider
-node Stripe {
-    node RestAPI as StripeRestAPI {
-
-    }
-}
-
-node StaticContent {
-    node Storage {
-    }
+    WSDatabase <--> DBMaster : reads/writes
+    WSDatabase <-- DBSlave1 : reads
+    WSDatabase <-- DBSlave2 : reads
 }
 
 
