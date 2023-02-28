@@ -1,12 +1,11 @@
-@startuml
+@startuml "System Architecture"
 
 actor Client
 
 node DNS
 
-DNS <- Client : dns lookup
+DNS <- Client : DNS lookup
 DNS .> Client : IP address
-
 
 frame Infrastructure {
 
@@ -77,12 +76,22 @@ frame Infrastructure {
     ' LB -[hidden]- SD
 
     frame "Web Servers" as WS {
-        node "Web Server 1" as WS1
-        node "Web Server 2" as WS2
+        node "Web Server 1" as WS1 {
+            component "Frontend" as WS1Frontend
+            component "REST API" as WS1RestAPI
+        }
+        node "Web Server 2" as WS2 {
+            component "Frontend" as WS2Frontend
+            component "REST API" as WS2RestAPI
+        }
 
         interface "Database" as WSDatabase
-        WS1 --> WSDatabase : http(s)
-        WS2 --> WSDatabase : http(s)
+        WS1RestAPI --> WSDatabase : http(s)
+        WS2RestAPI --> WSDatabase: http(s)
+
+        interface "External Services" as WSExternal
+        WS1 --> WSExternal : http(s)
+        WS2 --> WSExternal : http(s)
 
         note as WSNote
             <b>Web Servers</b>
@@ -99,26 +108,30 @@ frame Infrastructure {
     LBInternal --> WS2 : http(s)
 
     frame "Database" as DB {
-        node "Slave 1" as DBSlave1
-        node "Master" as DBMaster
-        node "Slave 2" as DBSlave2
+        node "Slave 1" as DBSlave1 {
+            component mysqld as DBSlave1Mysqld
+        }
+        node "Master" as DBMaster {
+            component mysqld as DBMasterMysqld
+        }
+        node "Slave 2" as DBSlave2 {
+            component mysqld as DBSlave2Mysqld
+        }
 
-        DBSlave1 <- DBMaster : Replication
-        DBMaster -> DBSlave2 : Replication
+        DBSlave1Mysqld <- DBMasterMysqld : Replication
+        DBMasterMysqld -> DBSlave2Mysqld : Replication
 
-        node "Backup 1" as DBBackup1
-        node "Backup 2" as DBBackup2
+        node "Backup 1" as DBBackup1 {
+            component mysqldump as DBBackup1Mysqldump
+            component cron as DBBackup1Cron
+        }
+        node "Backup 2" as DBBackup2 {
+            component mysqldump as DBBackup2Mysqldump
+            component cron as DBBackup2Cron
+        }
 
-        DBSlave1 --> DBBackup1 : Backup
-        DBSlave2 --> DBBackup2 : Backup
-        note left of DBBackup1
-            <b>Backup</b>
-            ---
-            Backup is done on
-            the slaves via mysqldump
-            on a regular basis
-            through cron jobs
-        end note
+        DBSlave1Mysqld --> DBBackup1 : Backup
+        DBSlave2Mysqld --> DBBackup2 : Backup
 
         note as DBNote
             <b>Master Slave replication</b>
@@ -126,15 +139,37 @@ frame Infrastructure {
             MySQL Replication
         end note
 
-        DBMaster .. DBNote
-        DBSlave1 .. DBNote
-        DBSlave2 .. DBNote
+        DBMasterMysqld .. DBNote
+        DBSlave1Mysqld .. DBNote
+        DBSlave2Mysqld .. DBNote
     }
 
-    WSDatabase <--> DBMaster : reads/writes
-    WSDatabase <-- DBSlave1 : reads
-    WSDatabase <-- DBSlave2 : reads
+    WSDatabase <--> DBMasterMysqld : reads/writes
+    WSDatabase <-- DBSlave1Mysqld : reads
+    WSDatabase <-- DBSlave2Mysqld : reads
 }
 
+frame External {
+    interface Inbound as EXInbound
+
+    node Stripe {
+
+    }
+
+    node StaticContent {
+
+    }
+
+    node FirebaseAuth {
+
+    }
+
+    EXInbound --> Stripe : http(s)
+    EXInbound --> StaticContent : http(s)
+    EXInbound --> FirebaseAuth : http(s)
+}
+
+WSExternal -[hidden]- External
+WSExternal --> EXInbound : http(s)
 
 @enduml
