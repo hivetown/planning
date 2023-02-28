@@ -10,33 +10,27 @@ DNS .> Client : IP address
 frame Infrastructure {
 
     frame "Load Balancing" as LB {
-        interface "Public IP (Inboud)" as LBPublicIP
-        Client --> LBPublicIP : http(s)
+        interface "Floating IP" as LBFloatingIP
+        Client --> LBFloatingIP : http(s)
 
         node "Active LB" as ActiveLB {
-            component HAProxy as ALBHAProxy {
-
-            }
-            LBPublicIP ...> PLBHAProxy
-
-            component Keepalived as ALBKeepalived {
-
-            }
+            component HAProxy as ALBHAProxy
+            component Keepalived as ALBKeepalived
+            ALBHAProxy -[hidden] ALBKeepalived
         }
+        LBFloatingIP -> ALBHAProxy
 
         node "Passive LB" as PassiveLB {
-            component HAProxy as PLBHAProxy {
+            component HAProxy as PLBHAProxy
+            component Keepalived as PLBKeepalived
+            PLBKeepalived -[hidden] PLBHAProxy
 
-            }
-            LBPublicIP --> ALBHAProxy
-
-            component Keepalived as PLBKeepalived {
-
-            }
+            ALBKeepalived -> PLBKeepalived : VRRP
+            PLBKeepalived -> ALBKeepalived : VRRP
         }
+        LBFloatingIP ...> PLBHAProxy
+        ActiveLB -[hidden] PassiveLB
 
-        ALBKeepalived --> PLBKeepalived : VRRP
-        PLBKeepalived --> ALBKeepalived : VRRP
 
         interface "Internal" as LBInternal
 
@@ -92,6 +86,8 @@ frame Infrastructure {
         interface "External Services" as WSExternal
         WS1 --> WSExternal : http(s)
         WS2 --> WSExternal : http(s)
+
+        WSDatabase -[hidden] WSExternal
 
         note as WSNote
             <b>Web Servers</b>
@@ -151,25 +147,18 @@ frame Infrastructure {
 
 frame External {
     interface Inbound as EXInbound
+    node FirebaseAuth
+    node StaticContent
+    node Stripe
 
-    node Stripe {
+    FirebaseAuth -[hidden]- StaticContent
+    StaticContent -[hidden]- Stripe
 
-    }
-
-    node StaticContent {
-
-    }
-
-    node FirebaseAuth {
-
-    }
-
-    EXInbound --> Stripe : http(s)
-    EXInbound --> StaticContent : http(s)
-    EXInbound --> FirebaseAuth : http(s)
+    EXInbound -> FirebaseAuth : http(s)
+    EXInbound -> StaticContent : http(s)
+    EXInbound -> Stripe : http(s)
 }
 
-WSExternal -[hidden]- External
-WSExternal --> EXInbound : http(s)
+WSExternal -> EXInbound : http(s)
 
 @enduml
