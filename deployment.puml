@@ -104,30 +104,21 @@ frame Infrastructure {
     LBInternal --> WS2 : http(s)
 
     frame "Database" as DB {
-        node "Slave 1" as DBSlave1 {
-            component mysqld as DBSlave1Mysqld
+        node PassiveDB as DBPassive {
+            component mysqld as DBPassiveMysqld
         }
-        node "Master" as DBMaster {
-            component mysqld as DBMasterMysqld
-        }
-        node "Slave 2" as DBSlave2 {
-            component mysqld as DBSlave2Mysqld
+        node ActiveDB as DBActive {
+            component mysqld as DBActiveMysqld
         }
 
-        DBSlave1Mysqld <- DBMasterMysqld : Replication
-        DBMasterMysqld -> DBSlave2Mysqld : Replication
+        DBPassiveMysqld <- DBActiveMysqld : Replication
 
         node "Backup 1" as DBBackup1 {
             component mysqldump as DBBackup1Mysqldump
             component cron as DBBackup1Cron
         }
-        node "Backup 2" as DBBackup2 {
-            component mysqldump as DBBackup2Mysqldump
-            component cron as DBBackup2Cron
-        }
 
-        DBSlave1Mysqld --> DBBackup1 : Backup
-        DBSlave2Mysqld --> DBBackup2 : Backup
+        DBPassiveMysqld --> DBBackup1 : Backup
 
         note as DBNote
             <b>Master Slave replication</b>
@@ -135,14 +126,12 @@ frame Infrastructure {
             MySQL Replication
         end note
 
-        DBMasterMysqld .. DBNote
-        DBSlave1Mysqld .. DBNote
-        DBSlave2Mysqld .. DBNote
+        DBActiveMysqld .. DBNote
+        DBPassiveMysqld .. DBNote
     }
 
-    WSDatabase <--> DBMasterMysqld : reads/writes
-    WSDatabase <-- DBSlave1Mysqld : reads
-    WSDatabase <-- DBSlave2Mysqld : reads
+    WSDatabase <--> DBActiveMysqld : reads/writes
+    WSDatabase <.. DBPassiveMysqld : reads
 }
 
 frame External {
