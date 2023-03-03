@@ -64,9 +64,8 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/GetProductSpecsResponse'
+                type: object
+                $ref: '#/components/schemas/GetProductSpecsResponse'
     post:
       # TODO who has permissions to create a product?
       security:
@@ -209,6 +208,59 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /products/{productSpecId}/products:
+    parameters:
+      - $ref: '#/components/parameters/productSpecId'
+    get:
+      summary: Get all products of a product specification
+      description: Get all products of a product specification
+      operationId: getProductSpecProducts
+      tags:
+        - products
+      parameters:
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/pageSize'
+      responses:
+        '200':
+          description: The list of products
+          content:
+            application/json:
+              schema:
+                type: object
+                $ref: '#/components/schemas/GetProducerProductsResponse'
+        '404':
+          description: Product specification not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /products/{productSpecId}/producers:
+    parameters:
+      - $ref: '#/components/parameters/productSpecId'
+    get:
+      summary: Get all producers of a product specification
+      description: Get all producers of a product specification
+      operationId: getProductSpecProducers
+      tags:
+        - products
+      parameters:
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/pageSize'
+      responses:
+        '200':
+          description: The list of producers
+          content:
+            application/json:
+              schema:
+                type: object
+                $ref: '#/components/schemas/GetProducersResponse'
+        '404':
+          description: Product specification not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  
   /products/{productSpecId}/categories:
     parameters:
       - $ref: '#/components/parameters/productSpecId'
