@@ -735,6 +735,208 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /consumers/{consumerId}/cart:
+    parameters:
+      - $ref: '#/components/parameters/consumerId'
+    get:
+      security:
+        - bearerAuth: []
+      summary: Get the cart of a consumer
+      description: Get the cart of a consumer
+      operationId: getConsumerCart
+      tags:
+        - consumers
+      responses:
+        '200':
+          description: The cart
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetConsumerCartResponse'
+        '401':
+          description: Unauthorized. The user is not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden. The user does not have permission to get the cart of a consumer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not Found. The consumer was not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      security:
+        - bearerAuth: []
+      summary: Delete the cart of a consumer
+      description: Delete the cart of a consumer
+      operationId: deleteConsumerCart
+      tags:
+        - consumers
+      responses:
+        '204':
+          description: The cart was deleted
+        '401':
+          description: Unauthorized. The user is not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden. The user does not have permission to delete the cart of a consumer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not Found. The consumer was not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /consumers/{consumerId}/cart/items:
+    parameters:
+      - $ref: '#/components/parameters/consumerId'
+    get:
+      parameters:
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/pageSize'
+      security:
+        - bearerAuth: []
+      summary: Get the items in the cart of a consumer
+      description: Get the items in the cart of a consumer
+      operationId: getConsumerCartItems
+      tags:
+        - consumers
+      responses:
+        '200':
+          description: The items in the cart
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetConsumerCartItemsResponse'
+        '401':
+          description: Unauthorized. The user is not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden. The user does not have permission to get the items in the cart of a consumer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not Found. The consumer was not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      security:
+        - bearerAuth: []
+      summary: Add items to the cart of a consumer
+      description: Add items to the cart of a consumer
+      operationId: addConsumerCartItems
+      tags:
+        - consumers
+      requestBody:
+        description: The items to add
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddConsumerCartItemsRequest'
+      responses:
+        '201':
+          description: The items were added to the cart
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddConsumerCartItemsResponse'
+        '400':
+          description: Bad Request. The items were invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized. The user is not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden. The user does not have permission to add items to the cart of a consumer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not Found. The consumer was not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /consumers/{consumerId}/cart/items/{producerProductId}:
+    parameters:
+      - $ref: '#/components/parameters/consumerId'
+      - $ref: '#/components/parameters/producerProductId'
+    put:
+      security:
+        - bearerAuth: []
+      summary: Update an item in the cart of a consumer
+      description: Update an item in the cart of a consumer
+      operationId: updateConsumerCartItem
+      tags:
+        - consumers
+      requestBody:
+        description: The item to update
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateConsumerCartItemRequest'
+      responses:
+        '200':
+          description: The item was updated in the cart
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateConsumerCartItemResponse'
+        '204':
+          description: The item had no changes
+        '400':
+          description: Bad Request. The item was invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized. The user is not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden. The user does not have permission to update an item in the cart of a consumer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Not Found. The consumer or item was not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /consumers/{consumerId}/addresses:
     parameters:
       - $ref: '#/components/parameters/consumerId'
@@ -2773,6 +2975,14 @@ components:
     UpdateConsumerRequest:
       description: The required body for the consumer update
       $ref: '#/components/schemas/Consumer'
+    AddConsumerCartItemsRequest:
+      description: The required body for the consumer cart item addition
+      allOf:
+        - $ref: '#/components/schemas/CartItem'
+        - type: object
+    UpdateConsumerCartItemRequest:
+      description: The required body for the consumer cart item update
+      $ref: '#/components/schemas/CartItem'
     CreateConsumerAddressRequest:
       description: The required body to create a consumer address
       allOf:
@@ -2919,6 +3129,25 @@ components:
     UpdateConsumerResponse:
       description: The updated consumer
       $ref: '#/components/schemas/Consumer'
+    GetConsumerCartResponse:
+      description: The consumer's cart
+      $ref: '#/components/schemas/Cart'
+    GetConsumerCartItemsResponse:
+      description: The items of the consumer's cart
+      allOf:
+        - $ref: '#/components/schemas/BasePaginatedResponse'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/CartItem'
+    AddConsumerCartItemsResponse:
+      description: The added item to the consumer's cart
+      $ref: '#/components/schemas/CartItem'
+    UpdateConsumerCartItemResponse:
+      description: The updated item of the consumer's cart
+      $ref: '#/components/schemas/CartItem'
     GetConsumerAddressesResponse:
       description: The consumer addresses
       allOf:
