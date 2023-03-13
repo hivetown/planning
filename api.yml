@@ -41,22 +41,23 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
         '401':
-          description: Authentication failed. Invalid credentials or user not found
+          description: Unauthorized. The user credentials are invalid 
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
   /products:
     get:
-      summary: Get all products
-      description: Get all products
-      operationId: getProducts
+      summary: Get all product specifications
+      description: Get all product specifications
+      operationId: getProductSpecs
       tags:
         - products
       parameters:
         - $ref: '#/components/parameters/page'
         - $ref: '#/components/parameters/pageSize'
-        # TODO: enum e tal para o sort ser mais específico
+        - $ref: '#/components/parameters/fields'
+        - $ref: '#/components/parameters/category'
         - $ref: '#/components/parameters/sort'
       responses:
         '200':
@@ -65,7 +66,28 @@ paths:
             application/json:
               schema:
                 type: object
-                $ref: '#/components/schemas/GetProductSpecsResponse'
+                description: The response for the get products endpoint
+                allOf:
+                  - $ref: '#/components/schemas/BasePaginatedResponse'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          allOf:
+                            - $ref: '#/components/schemas/ProductSpec'
+                            - type: object
+                              properties:
+                                producers:
+                                  allOf:
+                                    - $ref: '#/components/schemas/BaseItems'
+                                    - type: object
+                                      properties:
+                                        items:
+                                          type: array
+                                          items:
+                                            $ref: '#/components/schemas/Producer'
+
     post:
       # TODO who has permissions to create a product?
       security:
@@ -81,7 +103,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateProductSpecsRequest'
+              $ref: '#/components/schemas/ProductSpec'
       responses:
         '201':
           description: Product specifications created. Returns the created product specifications
@@ -90,7 +112,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/CreateProductSpecsResponse'
+                  $ref: '#/components/schemas/ProductSpec'
         '400':
           description: Bad Request
           content:
@@ -124,7 +146,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GetProductSpecResponse'
+                allOf:
+                  - $ref: '#/components/schemas/ProductSpec'
+                  - type: object
+                    properties:
+                      producers:
+                        allOf:
+                          - $ref: '#/components/schemas/BaseItems'
+                          - type: object
+                            properties:
+                              items:
+                                type: array
+                                items:
+                                  $ref: '#/components/schemas/Producer'
         '404':
           description: Product specification not found
           content:
@@ -145,14 +179,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UpdateProductSpecRequest'
+              $ref: '#/components/schemas/ProductSpec'
       responses:
         '200':
           description: The updated product specification
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UpdateProductSpecResponse'
+                $ref: '#/components/schemas/ProductSpec'
         '204':
           description: The product was not updated
         '400':
@@ -220,6 +254,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/page'
         - $ref: '#/components/parameters/pageSize'
+        - $ref: '#/components/parameters/sort'
       responses:
         '200':
           description: The list of products
@@ -227,7 +262,16 @@ paths:
             application/json:
               schema:
                 type: object
-                $ref: '#/components/schemas/GetProducerProductsResponse'
+                description: The response for the get products endpoint
+                allOf:
+                  - $ref: '#/components/schemas/BasePaginatedResponse'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          allOf:
+                            - $ref: '#/components/schemas/ProducerProduct'
         '404':
           description: Product specification not found
           content:
@@ -246,6 +290,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/page'
         - $ref: '#/components/parameters/pageSize'
+        - $ref: '#/components/parameters/sort'
       responses:
         '200':
           description: The list of producers
@@ -253,7 +298,16 @@ paths:
             application/json:
               schema:
                 type: object
-                $ref: '#/components/schemas/GetProducersResponse'
+                description: The response for the get product producers endpoint
+                allOf:
+                  - $ref: '#/components/schemas/BasePaginatedResponse'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          allOf:
+                            - $ref: '#/components/schemas/Producer'
         '404':
           description: Product specification not found
           content:
@@ -270,13 +324,27 @@ paths:
       operationId: getProductSpecCategories
       tags:
         - products
+      parameters:
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/pageSize'
+        - $ref: '#/components/parameters/sort'
       responses:
         '200':
-          description: The product specification's categories
+          description: The list of product specification's categories
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GetProductSpecCategoriesResponse'
+                type: object
+                description: The response for the get product categories endpoint
+                allOf:
+                  - $ref: '#/components/schemas/BasePaginatedResponse'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          allOf:
+                            - $ref: '#/components/schemas/Category'
         '404':
           description: Product specification not found
           content:
@@ -299,7 +367,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GetProductSpecCategoryResponse'
+                $ref: '#/components/schemas/Category'
         '404':
           description: Product specification or category not found
           # TODO would be nice to have an enum that lists all possible errors
@@ -322,7 +390,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AddProductSpecCategoryResponse'
+                $ref: '#/components/schemas/Category'
         '401':
           description: Unauthorized. The user is not authenticated
           content:
@@ -392,14 +460,32 @@ paths:
       operationId: getProductCategoryFields
       tags:
         - products
+      parameters:
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/pageSize'
+        - $ref: '#/components/parameters/sort'
       responses:
         '200':
-          description: The product specification category's fields
+          description: The list of product specification's category's fields
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GetProductSpecCategoryFieldsResponse'
-                # TODO add field values to this endpoint
+                type: object
+                description: The response for the get product category fields endpoint
+                allOf:
+                  - $ref: '#/components/schemas/BasePaginatedResponse'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            field:
+                              $ref: '#/components/schemas/Field'
+                            value:
+                              type: string
+                              description: The value of the field
         '404':
           description: Not Found. The product specification or category was not found
           content:
@@ -423,8 +509,12 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GetProductSpecCategoryFieldResponse'
-                # TODO add field value to this endpoint
+                properties:
+                  field:
+                    $ref: '#/components/schemas/Field'
+                  value:
+                    type: string
+                    description: The value of the field
         '404':
           description: Not Found. The product specification, category, or field was not found
           content:
@@ -435,19 +525,33 @@ paths:
     put:
       security:
         - bearerAuth: []
-      summary: Add a field to a category of a product specification
-      description: Add a field to a category of a product specification
-      operationId: addProductCategoryField
+      summary: Add or update a field to a category of a product specification
+      description: Add or update a field to a category of a product specification
+      operationId: addUpdateProductCategoryField
       tags:
         - products
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                value:
+                  type: string
+                  description: The value of the field
       responses:
         '201':
           description: The field was added to the category of the product
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AddProductSpecCategoryFieldResponse'
-                # TODO add field value to this endpoint
+                properties:
+                  field:
+                    $ref: '#/components/schemas/Field'
+                  value:
+                    type: string
+                    description: The value of the field
         '401':
           description: Unauthorized. The user is not authenticated
           content:
@@ -503,65 +607,6 @@ paths:
                 $ref: '#/components/schemas/Error'
         '409':
           description: The field was not on the category of the product specification
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-  # TODO this should be edit
-  /products/{productSpecId}/categories/{categoryId}/fields/{fieldId}/value:
-    parameters:
-      - $ref: '#/components/parameters/productSpecId'
-      - $ref: '#/components/parameters/categoryId'
-      - $ref: '#/components/parameters/fieldId'
-    put:
-      security:
-        - bearerAuth: []
-      summary: Set the value of a field of a category of a product specification
-      description: Set the value of a field of a category of a product specification
-      operationId: setProductCategoryFieldValue
-      tags:
-        - products
-      requestBody:
-        description: The value of the field
-        required: true
-        content:
-          application/json:
-            schema:
-              type: string
-      responses:
-        '201':
-          description: The field value was set
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SetProductSpecCategoryFieldValueResponse'
-                # TODO add field value to this endpoint
-        '400':
-          description: Bad Request. The field value was invalid
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '401':
-          description: Unauthorized. The user is not authenticated
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Forbidden. The user does not have permission to set field values of categories of product specifications
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '404':
-          description: Not Found. The product specification, category, or field was not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '409':
-          description: The field value was already set
           content:
             application/json:
               schema:
@@ -2858,6 +2903,23 @@ components:
       schema:
         type: string
         example: name:asc
+    fields:
+      name: fields
+      in: query
+      description: 'Filtering by fields.'
+      required: false
+      style: deepObject
+      allowReserved: true
+      schema:
+        type: object
+        additionalProperties:
+          type: array
+          items:
+            type: string
+        example:
+          14: ['female', 'male']
+          15: ['red']
+          
   schemas:
     # TODO make request & response objects for all endpoints
     # TODO sync the classes with the class diagram
@@ -2873,70 +2935,50 @@ components:
           maxItems: 100
           items:
             type: object
-    BasePaginatedResponse:
-      description: The base paginated response. All paginated responses should extend this and override the items property.
+    BaseItems:
       type: object
       properties:
         items:
+          description: List of items. Must be overridden in the extended schema.
           type: array
+          minItems: 1
+          maxItems: 100
           items:
             type: object
-        page:
+        totalItems:
           type: integer
           format: int32
-          example: 1
-        pageSize:
-          type: integer
-          format: int32
-          example: 100
-        totalResults:
-          type: integer
-          format: int32
-          example: 5
+          example: 1673
       required:
         - items
+        - totalItems
+    BasePaginatedResponse:
+      description: The base paginated response. All paginated responses should extend this and override the items property.
+      type: object
+      allOf:
+        - $ref: '#/components/schemas/BaseItems'
+        - type: object
+          properties:
+            page:
+              type: integer
+              format: int32
+              example: 1
+            pageSize:
+              type: integer
+              format: int32
+              maximum: 100
+              example: 100
+      required:
         - page
         - pageSize
-        - totalResults
     # Authentication
     AuthCredentials:
-      type: object
-      properties:
-        credentials:
-          type: object
-          discriminator:
-            propertyName: authType
-            mapping:
-              email: '#/components/schemas/EmailAuthCredentials'
-              # TODO make sure about this
-              google: '#/components/schemas/SocialAuthCredentials'
-              facebook: '#/components/schemas/SocialAuthCredentials'
-              twitter: '#/components/schemas/SocialAuthCredentials'
-          oneOf:
-            - $ref: '#/components/schemas/EmailAuthCredentials'
-            - $ref: '#/components/schemas/SocialAuthCredentials'
-    EmailAuthCredentials:
       type: object
       properties:
         authType:
           type: string
           enum:
             - email
-        email:
-          type: string
-          format: email
-        password:
-          type: string
-          format: password
-      required:
-        - email
-        - password
-    SocialAuthCredentials:
-      type: object
-      properties:
-        authType:
-          type: string
-          enum:
             - google
             - facebook
             - twitter
@@ -3050,16 +3092,6 @@ components:
         - required:
             - TODO
     # Responses
-    GetProductSpecsResponse:
-      description: The response for the get products endpoint
-      allOf:
-        - $ref: '#/components/schemas/BasePaginatedResponse'
-        - type: object
-          properties:
-            items:
-              type: array
-              items:
-                $ref: '#/components/schemas/ProducerProduct'
     GetProductSpecResponse:
       description: The response for the get product spec endpoint
       $ref: '#/components/schemas/ProductSpec'
@@ -3334,6 +3366,8 @@ components:
           properties:
             items:
               type: array
+              minItems: 0
+              maxItems: 100
               items:
                 $ref: '#/components/schemas/ShipmentEvent'
     CreateShipmentEventResponse:
@@ -3351,11 +3385,6 @@ components:
     User:
       type: object
       properties:
-        id:
-          readOnly: true
-          type: integer
-          format: int64
-          example: 1
         name:
           type: string
           example: Dom Sebastião
@@ -3368,48 +3397,47 @@ components:
         vat:
           type: string
           example: 123456789
-        type:
-          type: string
-          enum:
-            - PRODUCER
-            - CONSUMER
-          example: PRODUCER
-
+      required:
+        - name
+        - email
+        - phone
+        - vat
     Consumer:
       allOf:
         - $ref: '#/components/schemas/User'
         - type: object
           properties:
+            id:
+              readOnly: true
+              type: integer
+              format: int64
+              example: 9
             type:
               type: string
               enum:
                 - CONSUMER
               example: CONSUMER
-            # TODO figure out how to hide these fields from the consumer and only show them where needed
-            cart?:
-              $ref: '#/components/schemas/Cart'
-            orders?:
-              type: array
-              items:
-                $ref: '#/components/schemas/Order'
-            addresses?:
-              type: array
-              items:
-                $ref: '#/components/schemas/Address'
+          required:
+            - id
+            - type
     Producer:
       allOf:
         - $ref: '#/components/schemas/User'
         - type: object
           properties:
+            id:
+              readOnly: true
+              type: integer
+              format: int64
+              example: 6
             type:
               type: string
               enum:
                 - PRODUCER
               example: PRODUCER
-            productionUnits:
-              type: array
-              items:
-                $ref: '#/components/schemas/ProductionUnit'
+          required:
+            - id
+            - type
     Address:
       type: object
       properties:
@@ -3418,15 +3446,18 @@ components:
           type: integer
           format: int64
           example: 9
+        number:
+          type: integer
+          format: int32
+          example: 51
         door:
-          type: string
+          type: integer
+          format: int32
           example: 2
         floor:
-          type: string
+          type: integer
+          format: int32
           example: 1
-        number:
-          type: string
-          example: 51
         zipCode:
           type: string
           example: 2520-125
@@ -3453,6 +3484,17 @@ components:
           type: number
           format: float
           example: -9.323305
+      required:
+        - id
+        - number
+        - zipCode
+        - street
+        - parish
+        - county
+        - city
+        - district
+        - latitude
+        - longitude
     ProductionUnit:
       type: object
       properties:
@@ -3466,12 +3508,10 @@ components:
           example: Quinta da Alegria
         address:
           $ref: '#/components/schemas/Address'
-        producer?:
-          $ref: '#/components/schemas/Producer'
-        products?:
-          type: array
-          items:
-            $ref: '#/components/schemas/ProducerProduct'
+      required:
+        - id
+        - name
+        - address
     Carrier:
       type: object
       properties:
@@ -3483,23 +3523,35 @@ components:
         licensePlate:
           type: string
           example: 99-99-AA
-        # TODO figure out how to hide these fields on requests and show on responses
         status:
           type: string
           enum:
             - AVAILABLE
             - UNAVAILABLE
           example: AVAILABLE
-        productionUnit?:
-          $ref: '#/components/schemas/ProductionUnit'
+      required:
+        - id
+        - licensePlate
+        - status
     OrderItem:
       type: object
       properties:
-        id:
-          readOnly: true
-          type: integer
-          format: int64
-          example: 1
+        order:
+          oneOf:
+            - type: object
+              $ref: '#/components/schemas/Order'
+            - type: integer
+              format: int64
+              example: 13
+              readOnly: true
+        producerProduct:
+          oneOf:
+            - type: object
+              $ref: '#/components/schemas/ProducerProduct'
+            - type: integer
+              format: int64
+              example: 14
+              readOnly: true
         quantity:
           type: integer
           format: int32
@@ -3508,10 +3560,14 @@ components:
           type: number
           format: float
           example: 10.99
-        product:
-          $ref: '#/components/schemas/ProducerProduct'
-        order?:
-          $ref: '#/components/schemas/Order'
+        shipment:
+          $ref: '#/components/schemas/Shipment'
+      required:
+        - order
+        - producerProduct
+        - quantity
+        - price
+        - shipment
     Order:
       type: object
       properties:
@@ -3520,16 +3576,11 @@ components:
           type: integer
           format: int64
           example: 9
-        items:
-          type: array
-          items:
-            type: object
-            $ref: '#/components/schemas/OrderItem'
         shippingAddress:
           $ref: '#/components/schemas/Address'
-        consumer?:
-          type: object
-          $ref: '#/components/schemas/User'
+      required:
+        - id
+        - shippingAddress
     ShipmentEvent:
       type: object
       properties:
@@ -3543,16 +3594,32 @@ components:
           format: date-time
           example: 2019-10-10T10:10:10.000Z
         status:
-          type: object
-          properties:
-            name:
-              type: string
-              example: In Transit
-            description:
-              type: string
-              example: The shipment is in transit
-        shipment?:
-          $ref: '#/components/schemas/Shipment'
+          $ref: '#/components/schemas/ShipmentStatus'
+        address:
+          $ref: '#/components/schemas/Address'
+      required:
+        - id
+        - date
+        - status
+        - address
+    ShipmentStatus:
+      type: object
+      properties:
+        id:
+          readOnly: true
+          type: integer
+          format: int64
+          example: 1
+        name:
+          type: string
+          example: In Transit
+        description:
+          type: string
+          example: The shipment is in transit
+      required:
+        - id
+        - name
+        - description
     Shipment:
       type: object
       properties:
@@ -3563,16 +3630,14 @@ components:
           example: 1
         carrier:
           $ref: '#/components/schemas/Carrier'
-        products?:
-          type: array
-          items:
-            $ref: '#/components/schemas/ProducerProduct'
-        order?:
-          $ref: '#/components/schemas/Order'
-        events?:
+        events:
           type: array
           items:
             $ref: '#/components/schemas/ShipmentEvent'
+      required:
+        - id
+        - carrier
+        - events
     ProducerProduct:
       type: object
       properties:
@@ -3589,18 +3654,23 @@ components:
           type: string
           format: date-time
           example: 2019-10-10T10:10:10.000Z
-        producer?:
+        producer:
           $ref: '#/components/schemas/Producer'
-        productionUnit?:
+        productionUnit:
           $ref: '#/components/schemas/ProductionUnit'
-        specification?:
-          $ref: '#/components/schemas/ProductSpec'
         status:
           type: string
           enum:
             - AVAILABLE
             - SOLD_OUT
           example: AVAILABLE
+      required:
+        - id
+        - currentPrice
+        - productionDate
+        - producer
+        - productionUnit
+        - status
     ProductSpec:
       type: object
       properties:
@@ -3619,38 +3689,67 @@ components:
           type: array
           items:
             type: string
-            example: https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png
-        categories?:
-          type: array
-          items:
-            type: object
-            $ref: '#/components/schemas/ProductSpecCategory'
+            example: https://loremflickr.com/320/240/food
+      required:
+        - id
+        - name
+        - description
+        - images
     ProductSpecCategory:
+      # TODO review
       type: object
       properties:
         category: 
-          type: object
-          $ref: '#/components/schemas/Category'
-        spec?:
-          type: object
-          $ref: '#/components/schemas/ProductSpec'
-        fields?:
+          oneOf:
+            - type: object
+              $ref: '#/components/schemas/Category'
+            - type: integer
+              format: int64
+              example: 1
+              readOnly: true
+        productSpec:
+          oneOf:
+            - type: object
+              $ref: '#/components/schemas/ProductSpec'
+            - type: integer
+              format: int64
+              example: 1
+              readOnly: true
+        fields:
           type: array
           items:
             type: object
             $ref: '#/components/schemas/ProductSpecField'
+      required:
+        - category
+        - productSpec
     ProductSpecField:
       type: object
       properties:
+        field: 
+          oneOf:
+            - type: object
+              $ref: '#/components/schemas/Field'
+            - type: integer
+              format: int64
+              example: 1
+              readOnly: true
+        productSpecCategory:
+          oneOf:
+            - type: object
+              $ref: '#/components/schemas/ProductSpecCategory'
+            # TODO review
+            # - type: integer
+            #   format: int64
+            #   example: 1
+            #   readOnly: true
         value:
           type: string
           example: Vermelho
-        field: 
-          type: object
-          $ref: '#/components/schemas/Field'
-        spec?:
-          type: object
-          $ref: '#/components/schemas/ProductSpec'
+      required:
+        - field
+        - productSpecCategory
+        - value
     Category:
       type: object
       properties:
@@ -3662,14 +3761,18 @@ components:
         name: 
           type: string
           example: Fruta
-        parent?:
-          type: object
-          $ref: '#/components/schemas/Category'
-        fields?:
-          type: array
-          items:
-            type: object
-            $ref: '#/components/schemas/Field'
+        parent:
+          oneOf:
+            - type: object
+              $ref: '#/components/schemas/Category'
+            - type: integer
+              format: int64
+              example: 1
+              readOnly: true
+      required:
+        - id
+        - name
+        - parent
     Field:
       type: object
       properties:
@@ -3681,23 +3784,24 @@ components:
         name: 
           type: string
           example: Cor
-        unit?:
+        unit:
           type: string
           example: KG
         type: 
           type: string
           enum:
-            - STRING
+            - TEXT
             - INTEGER
             - FLOAT
             - BOOLEAN
             - DATE
-          example: STRING
-        possibleValues?:
-          type: array
-          items:
-            type: object
-            $ref: '#/components/schemas/FieldPossibleValue'
+          example: TEXT
+        # TODO add endpoint for a paginated list of possible values
+      required:
+        - id
+        - name
+        - unit
+        - type
     FieldPossibleValue:
       type: object
       properties:
@@ -3709,33 +3813,33 @@ components:
         value: 
           type: string
           example: Vermelho
-        field?:
-          type: object
-          $ref: '#/components/schemas/Field'
-    Cart:
-      type: object
-      properties:
-        items?:
-          type: array
-          items:
-            type: object
-            $ref: '#/components/schemas/CartItem'
-        consumer?:
-          type: object
-          $ref: '#/components/schemas/User'
+      required:
+        - id
+        - value
     CartItem:
       type: object
       properties:
-        id:
-          readOnly: true
-          type: integer
-          format: int64
-          example: 1
+        producerProduct:
+          oneOf:
+            - type: object
+              $ref: '#/components/schemas/ProducerProduct'
+            - type: integer
+              format: int64
+              example: 1
+              readOnly: true
+        consumer:
+          oneOf:
+            - type: object
+              $ref: '#/components/schemas/Consumer'
+            - type: integer
+              format: int64
+              example: 1
+              readOnly: true
         quantity:
           type: integer
           format: int64
           example: 1
-        product:
-          $ref: '#/components/schemas/ProducerProduct'
-        cart?:
-          $ref: '#/components/schemas/Cart'
+      required:
+        - producerProduct
+        - consumer
+        - quantity
