@@ -4,10 +4,15 @@ actor Client
 
 node DNS
 
-DNS <- Client : DNS lookup
-DNS .> Client : IP address
+Client --> DNS: DNS lookup
+DNS .> Client: IP address
 
 frame Infrastructure {
+
+    frame "Service Discovery" as SD #line:green {
+        node "Zookeeper Leader" as Zookeeper
+        node "Zookeeper Follower" as ZookeeperFollower
+    }
 
     frame "Load Balancing" as LB {
         interface "Floating IP" as LBFloatingIP
@@ -31,6 +36,8 @@ frame Infrastructure {
         LBFloatingIP ...> PLBHAProxy
         ActiveLB -[hidden] PassiveLB
 
+        Zookeeper -[#green] PassiveLB
+        Zookeeper -[#green] ActiveLB
 
         interface "Internal" as LBInternal
 
@@ -45,36 +52,17 @@ frame Infrastructure {
 
             On takeover, PassiveLB will become ActiveLB,
             exchanging the floating IP address
-            ___
-            Having more than one Passive LB makes
-            the system more resilient. TODO?
         end note
     }
 
-    ' frame "Service Discovery" as SD {
-    '     node "Leader" as SDLeader {
-    '     }
-
-    '     node "Follower 1" as SDFollower1 {
-    '     }
-
-    '     node "Follower 2" as SDFollower2 {
-    '     }
-
-    '     SDFollower1 -> SDLeader : Replication
-    '     SDFollower1 <. SDLeader : TCP/8300
-    '     SDLeader <- SDFollower2 : Replication
-    '     SDLeader .> SDFollower2 : TCP/8300
-    ' }
-
-    ' LB -[hidden]- SD
+    LB -[hidden]- SD
 
     frame "Web Servers" as WS {
         node "Web Server 1" as WS1 {
             component "Frontend" as WS1Frontend
             component "REST API" as WS1RestAPI
         }
-        node "Web Server 2" as WS2 {
+        node "Web Server 2..n" as WSN {
             component "Frontend" as WS2Frontend
             component "REST API" as WS2RestAPI
         }
@@ -85,7 +73,7 @@ frame Infrastructure {
 
         interface "External Services" as WSExternal
         WS1 --> WSExternal : http(s)
-        WS2 --> WSExternal : http(s)
+        WSN --> WSExternal : http(s)
 
         WSDatabase -[hidden] WSExternal
 
@@ -97,11 +85,14 @@ frame Infrastructure {
         end note
 
         WS1 -[hidden] WSNote
-        WS2 -[hidden] WSNote
+        WSN -[hidden] WSNote
+
+        WS1 -[#green]- Zookeeper
+        WSN -[#green]- Zookeeper
     }
 
     LBInternal --> WS1 : http(s)
-    LBInternal --> WS2 : http(s)
+    LBInternal --> WSN : http(s)
 
     frame "Database" as DB {
         node PassiveDB as DBPassive {
@@ -121,9 +112,13 @@ frame Infrastructure {
         DBPassiveMysqld --> DBBackup1 : Backup
 
         note as DBNote
-            <b>Master Slave replication</b>
-            ---
-            MySQL Replication
+            <b>Active-Passive</b>
+            --
+            Behaves like the load balancers
+            __
+            Replicated through
+            Master-Slave MySQL Replication
+            
         end note
 
         DBActiveMysqld .. DBNote
@@ -149,5 +144,6 @@ frame External {
 }
 
 WSExternal -> EXInbound : http(s)
+Client -> EXInbound : http(s)
 
 @enduml
