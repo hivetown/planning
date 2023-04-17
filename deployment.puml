@@ -4,28 +4,29 @@ actor Client
 
 node DNS
 
-Client --> DNS: DNS lookup
-DNS .> Client: IP address
+DNS <- Client: DNS lookup
+DNS ..> Client: IP address (<b>34.90.28.85</b>)
 
-frame Infrastructure {
+frame Infrastructure <<hivetown VPC>> as Infra {
 
-    frame "Service Discovery" as SD #line:green {
-        node "Zookeeper Leader" as Zookeeper
-        node "Zookeeper Follower" as ZookeeperFollower
+    frame "Service Discovery" <<servicediscovery-eu-west4 10.0.4.0/22>> as SD #line:green {
+        node "Zookeeper" <<ens4 10.0.4.2 static>> as Zookeeper {
+        }
     }
 
-    frame "Load Balancing" as LB {
+    frame "Load Balancing" <<loadbalancers-eu-west4 10.0.0.0/22>> as LB {
+        
         interface "Floating IP" as LBFloatingIP
         Client --> LBFloatingIP : http(s)
 
-        node "Active LB" as ActiveLB {
+        node "Active LB" <<ens4 10.0.0.2 static>> as ActiveLB {
             component HAProxy as ALBHAProxy
             component Keepalived as ALBKeepalived
             ALBHAProxy -[hidden] ALBKeepalived
         }
         LBFloatingIP -> ALBHAProxy
 
-        node "Passive LB" as PassiveLB {
+        node "Passive LB" <<ens4 10.0.0.3 static>> as PassiveLB {
             component HAProxy as PLBHAProxy
             component Keepalived as PLBKeepalived
             PLBKeepalived -[hidden] PLBHAProxy
@@ -51,18 +52,21 @@ frame Infrastructure {
             healthcheck by keepalived through VRRP
 
             On takeover, PassiveLB will become ActiveLB,
-            exchanging the floating IP address
+            and point the floating IP to itself.
+
+            When ActiveLB comes back online, it will
+            overtake PassiveLB and become the active node
         end note
     }
 
     LB -[hidden]- SD
 
-    frame "Web Servers" as WS {
-        node "Web Server 1" as WS1 {
+    frame "Web Servers" <<webservers-eu-west4 10.0.192.0/18>> as WS {
+        node "Web Server 1" <<ens4 dynamic>> as WS1 {
             component "Frontend" as WS1Frontend
             component "REST API" as WS1RestAPI
         }
-        node "Web Server 2..n" as WSN {
+        node "Web Server 2..n" <<ens4 dynamic>> as WSN {
             component "Frontend" as WS2Frontend
             component "REST API" as WS2RestAPI
         }
@@ -77,16 +81,6 @@ frame Infrastructure {
 
         WSDatabase -[hidden] WSExternal
 
-        note as WSNote
-            <b>Web Servers</b>
-            ---
-            More servers can be added
-            to increase the capacity
-        end note
-
-        WS1 -[hidden] WSNote
-        WSN -[hidden] WSNote
-
         WS1 -[#green]- Zookeeper
         WSN -[#green]- Zookeeper
     }
@@ -94,30 +88,29 @@ frame Infrastructure {
     LBInternal --> WS1 : http(s)
     LBInternal --> WSN : http(s)
 
-    frame "Database" as DB {
-        node PassiveDB as DBPassive {
-            component mysqld as DBPassiveMysqld
-        }
-        node ActiveDB as DBActive {
+    frame "Database" <<database-eu-west4 10.0.128.0/18>> as DB {
+        node ActiveDB <<ens4 10.0.128.2 static>> as DBActive {
             component mysqld as DBActiveMysqld
         }
 
-        DBPassiveMysqld <- DBActiveMysqld : Replication
-
-        node "Backup 1" as DBBackup1 {
-            component mysqldump as DBBackup1Mysqldump
-            component cron as DBBackup1Cron
+        node PassiveDB <<ens4 10.0.128.3 static>> as DBPassive {
+            component mysqld as DBPassiveMysqld
         }
 
-        DBPassiveMysqld --> DBBackup1 : Backup
+        DBActiveMysqld -> DBPassiveMysqld : Replication
 
         note as DBNote
             <b>Active-Passive</b>
             --
-            Behaves like the load balancers
-            __
             Replicated through
             Master-Slave MySQL Replication
+
+            --
+
+            Behaves like the load balancer takeover,
+            but when a new active is elected, it will
+            stay the active until it fails, no matter
+            if the original active comes back online.
             
         end note
 
@@ -125,8 +118,18 @@ frame Infrastructure {
         DBPassiveMysqld .. DBNote
     }
 
-    WSDatabase <--> DBActiveMysqld : reads/writes
-    WSDatabase <.. DBPassiveMysqld : reads
+    frame "Database Backups" <<database-backups-us-east1 10.0.112.0/20x>> as DBBackup {
+        node "Backup 1" <<ens4 10.0.112.2 static>> as DBBackup1 {
+            component mysqldump as DBBackupMysqldump
+            component cron as DBBackupCron
+        }
+
+        DBBackupMysqldump -[hidden] DBBackupCron
+        DBPassiveMysqld <-- DBBackupMysqldump : Backup
+    }
+
+    WSDatabase <--> DBActiveMysqld
+    WSDatabase <.. DBPassiveMysqld
 }
 
 frame External {
