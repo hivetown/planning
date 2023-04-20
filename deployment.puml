@@ -15,7 +15,7 @@ DNS ..> Client: IP Address (<b>34.90.28.85</b>)
 
 folder "hivetown-external" {
     frame "loadbalancer-eu-west4" <<10.255.0.0/22>> {
-        interface "Floating External IP (<b>34.90.28.85</b>)" as LBFloatingIP
+        interface "Floating External IP" <<34.90.28.85>> as LBFloatingIP
         Client --> LBFloatingIP : http(s)
     }
 }
@@ -41,7 +41,7 @@ frame "Load Balancers" as LB {
 
         component Keepalived as LB1Keepalived
 
-        interface "nic1" <<ens4 10.0.0.2>> as LB1NIC1
+        interface "nic1" <<ens5 10.0.0.2>> as LB1NIC1
 
         ' NIC0 on top
         LB1NIC0 -[hidden]- LB1DockerCompose
@@ -62,6 +62,9 @@ frame "Load Balancers" as LB {
         ' Keepalived takeover
         LB1NIC0 <-[#green]- LB1Keepalived : takeover
         GCPCEAccessConfig <-[#green]- LB1NIC0 : takeover
+
+        ' interface to Service Discovery
+        LB1NIC1 -[#red]-> LB1ServiceDiscoverySync : tcp:2181
     }
 
     ' Load balancer 2 (original standby/backup)
@@ -97,6 +100,9 @@ frame "Load Balancers" as LB {
         ' Keepalived takeover
         LB2NIC0 <-[#green]- LB2Keepalived : takeover
         GCPCEAccessConfig <-[#green]- LB2NIC0 : takeover
+
+        ' interface to Service Discovery
+        LB2NIC1 -[#red]-> LB2ServiceDiscoverySync : tcp:2181
     }
 
     ' Keepalived VRRP
@@ -156,7 +162,7 @@ frame "Web Servers" as WS {
         for arrow quantity <b>simplicity</b>,
         hence the <i>...n</i> notation.
     end note
-    WS1 <- WSNote
+    WS1 <. WSNote
     WS1 -[hidden]- WSNote
 
     ' node "webserver-2..n" as WS2 {
@@ -187,13 +193,14 @@ LB1 ----[hidden]down-> WS
 LB2 ----[hidden]down-> WS
 
 frame "Databases" as DB {
-    interface "Alias Floating IP" <<10.0.128.254>> as DBAliasFloatingIP
+    interface "Alias Floating IP" <<10.0.128.10>> as DBAliasFloatingIP
+    GCPCEAccessConfig -[#green]> DBAliasFloatingIP : tcp:3306
 
     ' Alias Floating IP to WS interface
     DBAliasFloatingIP <-[#ff00ff]> WS1NIC0 : tcp:3306
 
     node "database-1" as DB1 {
-        interface "nic0" <<ens4 10.0.128.2>> as DB1NIC0
+        interface "nic0" <<ens4 10.0.128.4>> as DB1NIC0
 
         frame DockerContainer as DB1DockerContainer {
             component MySQL as DB1MySQL
