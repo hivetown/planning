@@ -1,40 +1,45 @@
 @startuml "System Architecture"
+skinparam nodesep 10
+skinparam ranksep 20
 
 actor Client
 
 node DNS
 
 DNS <- Client: DNS lookup
-DNS ..> Client: IP address (<b>34.90.28.85</b>)
+DNS ..> Client: IP Address (<b>34.90.28.85</b>)
 
-frame Infrastructure <<hivetown VPC>> as Infra {
+interface "Floating External IP (<b>34.90.28.85</b>)" as LBFloatingIP
+Client --> LBFloatingIP : http(s)
+
+frame Hivetown <<hivetown VPC>> as Hivetown {
 
     frame "Service Discovery" <<servicediscovery-eu-west4 10.0.4.0/22>> as SD #line:green {
-        node "Zookeeper" <<ens4 10.0.4.2 static>> as Zookeeper {
+        node "<b>Zookeeper</b>" <<ens4 10.0.4.2 static>> as Zookeeper {
         }
     }
 
     frame "Load Balancing" <<loadbalancers-eu-west4 10.0.0.0/22>> as LB {
-        
-        interface "Floating IP" as LBFloatingIP
-        Client --> LBFloatingIP : http(s)
 
         node "Active LB" <<ens4 10.0.0.2 static>> as ActiveLB {
-            component HAProxy as ALBHAProxy
+            component HaProxy as ALBHaProxy
             component Keepalived as ALBKeepalived
-            ALBHAProxy -[hidden] ALBKeepalived
+            ALBHaProxy -[hidden] ALBKeepalived
+
         }
-        LBFloatingIP -> ALBHAProxy
+        LBFloatingIP -> ALBHaProxy : http(s)
 
         node "Passive LB" <<ens4 10.0.0.3 static>> as PassiveLB {
-            component HAProxy as PLBHAProxy
+            component HaProxy as PLBHaProxy
             component Keepalived as PLBKeepalived
-            PLBKeepalived -[hidden] PLBHAProxy
+            PLBKeepalived -[hidden] PLBHaProxy
 
             ALBKeepalived -> PLBKeepalived : VRRP
-            PLBKeepalived -> ALBKeepalived : VRRP
+            ALBKeepalived <- PLBKeepalived : VRRP
         }
-        LBFloatingIP ...> PLBHAProxy
+
+        
+        LBFloatingIP ...> PLBHaProxy : http(s)
         ActiveLB -[hidden] PassiveLB
 
         Zookeeper -[#green] PassiveLB
@@ -42,11 +47,11 @@ frame Infrastructure <<hivetown VPC>> as Infra {
 
         interface "Internal" as LBInternal
 
-        ALBHAProxy --> LBInternal : http(s)
-        PLBHAProxy ..> LBInternal : http(s)
+        ALBHaProxy --> LBInternal : http
+        PLBHaProxy ..> LBInternal : http
 
-        note bottom of PassiveLB
-            <b>Active-Passive</b>
+        note as LBNote
+            <b>High Availability</b> (active-passive)
             ---
             PassiveLB will take over if ActiveLB fails
             healthcheck by keepalived through VRRP
@@ -57,6 +62,8 @@ frame Infrastructure <<hivetown VPC>> as Infra {
             When ActiveLB comes back online, it will
             overtake PassiveLB and become the active node
         end note
+        ActiveLB .. LBNote
+        PassiveLB .. LBNote
     }
 
     LB -[hidden]- SD
@@ -64,20 +71,20 @@ frame Infrastructure <<hivetown VPC>> as Infra {
     frame "Web Servers" <<webservers-eu-west4 10.0.192.0/18>> as WS {
         node "Web Server 1" <<ens4 dynamic>> as WS1 {
             component "Frontend" as WS1Frontend
-            component "REST API" as WS1RestAPI
+            component "Backend" as WS1RestAPI
         }
         node "Web Server 2..n" <<ens4 dynamic>> as WSN {
             component "Frontend" as WS2Frontend
-            component "REST API" as WS2RestAPI
+            component "Backend" as WS2RestAPI
         }
 
         interface "Database" as WSDatabase
-        WS1RestAPI --> WSDatabase : http(s)
-        WS2RestAPI --> WSDatabase: http(s)
+        WS1RestAPI --> WSDatabase : http
+        WS2RestAPI --> WSDatabase: http
 
         interface "External Services" as WSExternal
-        WS1 --> WSExternal : http(s)
-        WSN --> WSExternal : http(s)
+        WS1 --> WSExternal : http
+        WSN --> WSExternal : http
 
         WSDatabase -[hidden] WSExternal
 
@@ -85,8 +92,8 @@ frame Infrastructure <<hivetown VPC>> as Infra {
         WSN -[#green]- Zookeeper
     }
 
-    LBInternal --> WS1 : http(s)
-    LBInternal --> WSN : http(s)
+    LBInternal --> WS1 : http
+    LBInternal --> WSN : http
 
     frame "Database" <<database-eu-west4 10.0.128.0/18>> as DB {
         node ActiveDB <<ens4 10.0.128.2 static>> as DBActive {
@@ -100,7 +107,7 @@ frame Infrastructure <<hivetown VPC>> as Infra {
         DBActiveMysqld -> DBPassiveMysqld : Replication
 
         note as DBNote
-            <b>Active-Passive</b>
+            <b>High Availability</b> (active-passive)
             --
             Replicated through
             Master-Slave MySQL Replication
@@ -141,12 +148,12 @@ frame External {
     FirebaseAuth -[hidden]- StaticContent
     StaticContent -[hidden]- Stripe
 
-    EXInbound -> FirebaseAuth : http(s)
-    EXInbound -> StaticContent : http(s)
-    EXInbound -> Stripe : http(s)
+    EXInbound -> FirebaseAuth : https
+    EXInbound -> StaticContent : https
+    EXInbound -> Stripe : https
 }
 
-WSExternal -> EXInbound : http(s)
-Client -> EXInbound : http(s)
+WSExternal -> EXInbound : https
+Client -> EXInbound : https
 
 @enduml
