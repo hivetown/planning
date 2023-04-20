@@ -1,159 +1,74 @@
 @startuml "System Architecture"
-skinparam nodesep 10
-skinparam ranksep 20
 
 actor Client
-
 node DNS
 
 DNS <- Client: DNS lookup
 DNS ..> Client: IP Address (<b>34.90.28.85</b>)
 
-interface "Floating External IP (<b>34.90.28.85</b>)" as LBFloatingIP
-Client --> LBFloatingIP : http(s)
+folder "hivetown-external" {
+    interface "Floating External IP (<b>34.90.28.85</b>)" as LBFloatingIP
+    Client --> LBFloatingIP : http(s)
 
-frame Hivetown <<hivetown VPC>> as Hivetown {
-
-    frame "Service Discovery" <<servicediscovery-eu-west4 10.0.4.0/22>> as SD #line:green {
-        node "<b>Zookeeper</b>" <<ens4 10.0.4.2 static>> as Zookeeper {
-        }
+    frame "loadbalancer-eu-west4" <<10.255.0.0/22>> {
+        interface "loadbalancer-1-nic0" <<10.255.0.2>> as LB1NIC0
+        interface "loadbalancer-2-nic0" <<10.255.0.2>> as LB2NIC0
     }
 
-    frame "Load Balancing" <<loadbalancers-eu-west4 10.0.0.0/22>> as LB {
-
-        node "Active LB" <<ens4 10.0.0.2 static>> as ActiveLB {
-            component HaProxy as ALBHaProxy
-            component Keepalived as ALBKeepalived
-            ALBHaProxy -[hidden] ALBKeepalived
-
-        }
-        LBFloatingIP -> ALBHaProxy : http(s)
-
-        node "Passive LB" <<ens4 10.0.0.3 static>> as PassiveLB {
-            component HaProxy as PLBHaProxy
-            component Keepalived as PLBKeepalived
-            PLBKeepalived -[hidden] PLBHaProxy
-
-            ALBKeepalived -> PLBKeepalived : VRRP
-            ALBKeepalived <- PLBKeepalived : VRRP
-        }
-
-        
-        LBFloatingIP ...> PLBHaProxy : http(s)
-        ActiveLB -[hidden] PassiveLB
-
-        Zookeeper -[#green] PassiveLB
-        Zookeeper -[#green] ActiveLB
-
-        interface "Internal" as LBInternal
-
-        ALBHaProxy --> LBInternal : http
-        PLBHaProxy ..> LBInternal : http
-
-        note as LBNote
-            <b>High Availability</b> (active-passive)
-            ---
-            PassiveLB will take over if ActiveLB fails
-            healthcheck by keepalived through VRRP
-
-            On takeover, PassiveLB will become ActiveLB,
-            and point the floating IP to itself.
-
-            When ActiveLB comes back online, it will
-            overtake PassiveLB and become the active node
-        end note
-        ActiveLB .. LBNote
-        PassiveLB .. LBNote
-    }
-
-    LB -[hidden]- SD
-
-    frame "Web Servers" <<webservers-eu-west4 10.0.192.0/18>> as WS {
-        node "Web Server 1" <<ens4 dynamic>> as WS1 {
-            component "Frontend" as WS1Frontend
-            component "Backend" as WS1RestAPI
-        }
-        node "Web Server 2..n" <<ens4 dynamic>> as WSN {
-            component "Frontend" as WS2Frontend
-            component "Backend" as WS2RestAPI
-        }
-
-        interface "Database" as WSDatabase
-        WS1RestAPI --> WSDatabase : http
-        WS2RestAPI --> WSDatabase: http
-
-        interface "External Services" as WSExternal
-        WS1 --> WSExternal : http
-        WSN --> WSExternal : http
-
-        WSDatabase -[hidden] WSExternal
-
-        WS1 -[#green]- Zookeeper
-        WSN -[#green]- Zookeeper
-    }
-
-    LBInternal --> WS1 : http
-    LBInternal --> WSN : http
-
-    frame "Database" <<database-eu-west4 10.0.128.0/18>> as DB {
-        node ActiveDB <<ens4 10.0.128.2 static>> as DBActive {
-            component mysqld as DBActiveMysqld
-        }
-
-        node PassiveDB <<ens4 10.0.128.3 static>> as DBPassive {
-            component mysqld as DBPassiveMysqld
-        }
-
-        DBActiveMysqld -> DBPassiveMysqld : Replication
-
-        note as DBNote
-            <b>High Availability</b> (active-passive)
-            --
-            Replicated through
-            Master-Slave MySQL Replication
-
-            --
-
-            Behaves like the load balancer takeover,
-            but when a new active is elected, it will
-            stay the active until it fails, no matter
-            if the original active comes back online.
-            
-        end note
-
-        DBActiveMysqld .. DBNote
-        DBPassiveMysqld .. DBNote
-    }
-
-    frame "Database Backups" <<database-backups-us-east1 10.0.112.0/20x>> as DBBackup {
-        node "Backup 1" <<ens4 10.0.112.2 static>> as DBBackup1 {
-            component mysqldump as DBBackupMysqldump
-            component cron as DBBackupCron
-        }
-
-        DBBackupMysqldump -[hidden] DBBackupCron
-        DBPassiveMysqld <-- DBBackupMysqldump : Backup
-    }
-
-    WSDatabase <--> DBActiveMysqld
-    WSDatabase <.. DBPassiveMysqld
+    ' Floating IP to interface
+    LBFloatingIP --> LB1NIC0 : http(s)
+    LBFloatingIP ..> LB2NIC0
 }
 
-frame External {
-    interface Inbound as EXInbound
-    node FirebaseAuth
-    node StaticContent
-    node Stripe
+frame "Load Balancers" as LB {
+    ' Load balancer 1 (original active)
+    node "loadbalancer-1" as LB1 {
+        frame DockerCompose as LB1DockerCompose {
+            component HaProxy as LB1HaProxy
+            component ServiceDiscoverySync as LB1ServiceDiscoverySync
+            LB1ServiceDiscoverySync -(0 LB1HaProxy : DataPlaneAPI
+        }
 
-    FirebaseAuth -[hidden]- StaticContent
-    StaticContent -[hidden]- Stripe
+        component Keepalived as LB1Keepalived
+    }
+    
 
-    EXInbound -> FirebaseAuth : https
-    EXInbound -> StaticContent : https
-    EXInbound -> Stripe : https
+    ' Load balancer 2 (original standby/backup)
+    node "loadbalancer-2" as LB2 {
+        frame DockerCompose as LB2DockerCompose {
+            component HaProxy as LB2HaProxy
+            component ServiceDiscoverySync as LB2ServiceDiscoverySync
+            LB2ServiceDiscoverySync -(0 LB2HaProxy : DataPlaneAPI
+        }
+
+        component Keepalived as LB2Keepalived
+
+        ' Keepalived on the left
+        LB2Keepalived -[hidden] LB2DockerCompose
+    }
 }
 
-WSExternal -> EXInbound : https
-Client -> EXInbound : https
+folder "hivetown-internal" {
+    frame "loadbalancers-eu-west4" <<10.0.0.0/22>> {
+        interface "loadbalancer-1-nic1" <<10.0.0.2>> as LB1NIC1
+        interface "loadbalancer-2-nic1" <<10.0.0.3>> as LB2NIC1
 
-@enduml
+        ' HaProxy to external interface
+        LB1NIC0 -[#blue]-> LB1HaProxy : http(s)
+        LB2NIC0 -[#blue]-> LB2HaProxy : http(s)
+
+        ' Keepalived VRRP
+        LB1Keepalived -[#green]-> LB1NIC1
+        LB2Keepalived -[#green]-> LB2NIC1
+        LB1NIC1 <-[#green]> LB2NIC1 : vrrp
+
+        ' Keepalived takeover
+        LB1NIC0 <-[#green]- LB1Keepalived : takeover
+        LB2NIC0 <-[#green]- LB2Keepalived : takeover
+
+        ' HaProxy to internal interface
+        LB1HaProxy -[#blue]-> LB1NIC1 : http
+        LB2HaProxy -[#blue]-> LB2NIC1 : http
+
+    }
+}
