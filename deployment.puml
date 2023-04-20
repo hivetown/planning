@@ -1,28 +1,38 @@
 @startuml "System Architecture"
+top to bottom direction
+
+<style>
+node {
+    BackgroundColor #ededed
+}
+</style>
 
 actor Client
-node DNS
+component DNS
 
 DNS <- Client: DNS lookup
 DNS ..> Client: IP Address (<b>34.90.28.85</b>)
 
 folder "hivetown-external" {
-    interface "Floating External IP (<b>34.90.28.85</b>)" as LBFloatingIP
-    Client --> LBFloatingIP : http(s)
-
     frame "loadbalancer-eu-west4" <<10.255.0.0/22>> {
-        interface "loadbalancer-1-nic0" <<10.255.0.2>> as LB1NIC0
-        interface "loadbalancer-2-nic0" <<10.255.0.2>> as LB2NIC0
+        interface "Floating External IP (<b>34.90.28.85</b>)" as LBFloatingIP
+        Client --> LBFloatingIP : http(s)
     }
+}
 
-    ' Floating IP to interface
-    LBFloatingIP --> LB1NIC0 : http(s)
-    LBFloatingIP ..> LB2NIC0
+folder "Google Cloud Platform" as GCP {
+    frame "Compute Engine" as GCPCE {
+        component "Access Config" as GCPCEAccessConfig
+        ' GCPCEAccessConfig -[#green]> LBFloatingIP
+        LBFloatingIP <-[#green]- GCPCEAccessConfig
+    }
 }
 
 frame "Load Balancers" as LB {
     ' Load balancer 1 (original active)
     node "loadbalancer-1" as LB1 {
+        interface "nic0" <<ens4 10.255.0.2>> as LB1NIC0
+
         frame DockerCompose as LB1DockerCompose {
             component HaProxy as LB1HaProxy
             component ServiceDiscoverySync as LB1ServiceDiscoverySync
@@ -30,11 +40,34 @@ frame "Load Balancers" as LB {
         }
 
         component Keepalived as LB1Keepalived
+
+        interface "nic1" <<ens4 10.0.0.2>> as LB1NIC1
+
+        ' NIC0 on top
+        LB1NIC0 -[hidden]- LB1DockerCompose
+        LB1NIC0 -[hidden]- LB1Keepalived
+        ' Keepalived on left of Docker Compose
+        LB1Keepalived -[hidden] LB1DockerCompose
+        ' NIC1 on bottom
+        LB1DockerCompose -[hidden]- LB1NIC1
+        LB1Keepalived -[hidden]- LB1NIC1
+
+        ' HaProxy to external interface
+        LB1NIC0 <-[#RoyalBlue]-> LB1HaProxy : http(s)
+        ' HaProxy to internal interface
+        LB1HaProxy <-[#blue]-> LB1NIC1 : http
+
+        ' Keepalived VRRP
+        LB1Keepalived <-[#green]-> LB1NIC1 : VRRP
+        ' Keepalived takeover
+        LB1NIC0 <-[#green]- LB1Keepalived : takeover
+        GCPCEAccessConfig <-[#green]- LB1NIC0 : takeover
     }
-    
 
     ' Load balancer 2 (original standby/backup)
     node "loadbalancer-2" as LB2 {
+        interface "nic0" <<ens4 10.255.0.3>> as LB2NIC0
+
         frame DockerCompose as LB2DockerCompose {
             component HaProxy as LB2HaProxy
             component ServiceDiscoverySync as LB2ServiceDiscoverySync
@@ -43,32 +76,203 @@ frame "Load Balancers" as LB {
 
         component Keepalived as LB2Keepalived
 
-        ' Keepalived on the left
+        interface "nic1" <<ens5 10.0.0.3>> as LB2NIC1
+
+        ' NIC0 on top
+        LB2NIC0 -[hidden]- LB2DockerCompose
+        LB2NIC0 -[hidden]- LB2Keepalived
+        ' Keepalived on left of Docker Compose
         LB2Keepalived -[hidden] LB2DockerCompose
+        ' NIC1 on bottom
+        LB2DockerCompose -[hidden]- LB2NIC1
+        LB2Keepalived -[hidden]- LB2NIC1
+
+        ' HaProxy to external interface
+        LB2NIC0 <-[#RoyalBlue]-> LB2HaProxy : http(s)
+        ' HaProxy to internal interface
+        LB2HaProxy <-[#blue]-> LB2NIC1 : http
+
+        ' Keepalived VRRP
+        LB2Keepalived <-[#green]-> LB2NIC1 : VRRP
+        ' Keepalived takeover
+        LB2NIC0 <-[#green]- LB2Keepalived : takeover
+        GCPCEAccessConfig <-[#green]- LB2NIC0 : takeover
+    }
+
+    ' Keepalived VRRP
+    LB1NIC1 <-[#green]> LB2NIC1 : VRRP
+
+    ' Floating IP to interface
+    LBFloatingIP -[#RoyalBlue]-> LB1NIC0 : http(s)
+    LBFloatingIP .[#RoyalBlue].> LB2NIC0 : http(s)
+}
+
+frame "Service Discovery" as SD {
+    node "zookeeper-1" as ZK1 {
+        interface "nic0" <<ens4 10.0.4.2>> as ZK1NIC0
+        
+        frame DockerContainer {
+            node Zookeeper
+        }
+
+        ' Zookeeper to interface
+        ZK1NIC0 <-[#red]-> Zookeeper : tcp:2181
+        ' interface to LBs interface
+        ZK1NIC0 <-[#red]> LB1NIC1 : tcp:2181
+        ZK1NIC0 <-[#red]> LB2NIC1 : tcp:2181
+    }
+}
+' SD on bottom of LB1 and LB2
+LB1 ----[hidden]down-> SD
+LB2 ----[hidden]down-> SD
+
+frame "Web Servers" as WS {
+    node "webserver-1...n" as WS1 {
+        interface "nic0" <<ens4 dynamic>> as WS1NIC0
+
+        frame DockerCompose as WS1DockerCompose {
+            component Nginx as WS1Nginx
+            component API as WS1API
+            component ServiceDiscoveryAnnouncer as WS1ServiceDiscoveryAnnouncer
+        }
+
+        ' Nginx to interface
+        WS1NIC0 <-[#blue]-> WS1Nginx : http
+        ' API to interface
+        WS1NIC0 <-[#blue]-> WS1API : http
+        ' interface to LBs interface
+        WS1NIC0 <-[#blue]> LB1NIC1 : http
+        WS1NIC0 <-[#blue]> LB2NIC1 : http 
+
+        ' ServiceDiscoveryAnnouncer to interface
+        WS1NIC0 <-[#red]- WS1ServiceDiscoveryAnnouncer : tcp:2181
+        ' interface to SD interface
+        ZK1NIC0 <-[#red]- WS1NIC0 : tcp:2181
+    }
+
+    note as WSNote
+        There are <b>multiple web servers</b>
+        , but only one is shown
+        for arrow quantity <b>simplicity</b>,
+        hence the <i>...n</i> notation.
+    end note
+    WS1 <- WSNote
+    WS1 -[hidden]- WSNote
+
+    ' node "webserver-2..n" as WS2 {
+    '     interface "nic0" <<ens4 dynamic>> as WS2NIC0
+
+    '     frame DockerCompose as WS2DockerCompose {
+    '         component Nginx as WS2Nginx
+    '         component API as WS2API
+    '         component ServiceDiscoveryAnnouncer as WS2ServiceDiscoveryAnnouncer
+    '     }
+
+    '     ' Nginx to interface
+    '     WS2NIC0 <-[#blue]-> WS2Nginx : http
+    '     ' API to interface
+    '     WS2NIC0 <-[#blue]-> WS2API : http
+    '     ' interface to LBs interface
+    '     WS2NIC0 <-[#blue]> LB1NIC1 : http
+    '     WS2NIC0 <-[#blue]> LB2NIC1 : http 
+
+    '     ' ServiceDiscoveryAnnouncer to interface
+    '     WS2NIC0 <-[#red]- WS2ServiceDiscoveryAnnouncer : tcp:2181
+    '     ' interface to SD interface
+    '     ZK1NIC0 <-[#red]- WS2NIC0 : tcp:2181
+    ' }
+}
+' WS on bottom of LB1 and LB2
+LB1 ----[hidden]down-> WS
+LB2 ----[hidden]down-> WS
+
+frame "Databases" as DB {
+    interface "Alias Floating IP" <<10.0.128.254>> as DBAliasFloatingIP
+
+    ' Alias Floating IP to WS interface
+    DBAliasFloatingIP <-[#ff00ff]> WS1NIC0 : tcp:3306
+
+    node "database-1" as DB1 {
+        interface "nic0" <<ens4 10.0.128.2>> as DB1NIC0
+
+        frame DockerContainer as DB1DockerContainer {
+            component MySQL as DB1MySQL
+        }
+
+        component Keepalived as DB1Keepalived
+
+        ' interface on top
+        DB1NIC0 -[hidden]- DB1DockerContainer 
+        DB1NIC0 -[hidden]- DB1Keepalived
+
+        ' MySQL to interface
+        DB1NIC0 <-[#ff00ff]-> DB1MySQL : tcp:3306
+
+        ' Keepalived VRRP
+        DB1NIC0 <-[#green]> DB1Keepalived : VRRP
+        ' Keepalived takeover
+        DB1NIC0 <-[#green]- DB1Keepalived : takeover
+        GCPCEAccessConfig <-[#green]- DB1NIC0 : takeover
+    }
+
+    node "database-2" as DB2 {
+        interface "nic0" <<ens4 10.0.128.3>> as DB2NIC0
+
+        frame DockerContainer as DB2DockerContainer {
+            component MySQL as DB2MySQL
+        }
+
+        component Keepalived as DB2Keepalived
+
+        ' interface on top
+        DB2NIC0 -[hidden]- DB2DockerContainer
+        DB2NIC0 -[hidden]- DB2Keepalived
+
+        ' MySQL to interface
+        DB2NIC0 <-[#ff00ff]-> DB2MySQL : tcp:3306
+
+        ' Keepalived VRRP
+        DB2NIC0 <-[#green]> DB2Keepalived : VRRP
+        DB2NIC0 <-[#green]- DB2Keepalived : takeover
+        GCPCEAccessConfig <----------[#green]- DB2NIC0 : takeover
+    }
+
+    ' Alias Floating IP on top
+    DBAliasFloatingIP -[hidden]- DB1
+    DBAliasFloatingIP -[hidden]- DB2
+
+    ' Alias Floating IP to BDs interfaces
+    DBAliasFloatingIP <-[#ff00ff]> DB1NIC0 : tcp:3306
+    DBAliasFloatingIP <.[#ff00ff]> DB2NIC0 : tcp:3306
+
+    ' Keepalived VRRP
+    DB1NIC0 <-[#green]> DB2NIC0 : VRRP
+}
+
+' DB on bottom of WS and SD
+WS ----[hidden]down-> DB
+
+frame "Database Backups" as DBB {
+    node "database-backup-1" as DBB1 {
+        interface "nic0" <<ens4 10.0.112.2>> as DBB1NIC0
+
+        component MySQLDump as DBBMySQLDump
+        component Crontab as DBBCrontab
+
+        ' MysqlDump to interface
+        DBB1NIC0 <-[#OrangeRed]- DBBMySQLDump : tcp:3306
+        ' Crontab to mysqldump
+        DBBMySQLDump 0)- DBBCrontab : execute
+
+        ' interface to Alias Floating IP interfaces
+        DBB1NIC0 <-[#OrangeRed]> DBAliasFloatingIP : tcp:3306
     }
 }
 
 folder "hivetown-internal" {
-    frame "loadbalancers-eu-west4" <<10.0.0.0/22>> {
-        interface "loadbalancer-1-nic1" <<10.0.0.2>> as LB1NIC1
-        interface "loadbalancer-2-nic1" <<10.0.0.3>> as LB2NIC1
-
-        ' HaProxy to external interface
-        LB1NIC0 -[#blue]-> LB1HaProxy : http(s)
-        LB2NIC0 -[#blue]-> LB2HaProxy : http(s)
-
-        ' Keepalived VRRP
-        LB1Keepalived -[#green]-> LB1NIC1
-        LB2Keepalived -[#green]-> LB2NIC1
-        LB1NIC1 <-[#green]> LB2NIC1 : vrrp
-
-        ' Keepalived takeover
-        LB1NIC0 <-[#green]- LB1Keepalived : takeover
-        LB2NIC0 <-[#green]- LB2Keepalived : takeover
-
-        ' HaProxy to internal interface
-        LB1HaProxy -[#blue]-> LB1NIC1 : http
-        LB2HaProxy -[#blue]-> LB2NIC1 : http
-
-    }
+    frame "loadbalancers-eu-west4" <<10.0.0.0/22>>
+    frame "servicediscovery-eu-west4" <<10.0.4.0/22>>
+    frame "webservers-eu-west4" <<10.0.192.0/18>>
+    frame "database-eu-west4" <<10.0.128.0/18>>
+    frame "database-backups-us-east1" <<10.0.112.0/20>>
 }
