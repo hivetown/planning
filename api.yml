@@ -3668,10 +3668,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/NotFoundError'
-  /products/{productSpecId}/products/{productId}:
+  /products/{productSpecId}/products/{producerProductId}:
     parameters:
       - $ref: '#/components/parameters/productSpecId'
-      - $ref: '#/components/parameters/productId'
+      - $ref: '#/components/parameters/producerProductId'
     get:
       summary: Get a product of a product
       operationId: getProductProduct
@@ -4401,7 +4401,13 @@ components:
         minimum: 1
         maximum: 100
         default: 24
-
+    status:
+      name: status
+      in: query
+      description: Status
+      required: false
+      schema:
+        type: string
     includeAll:
       name: includeAll
       in: query
@@ -4452,6 +4458,143 @@ components:
       name: orderId
       in: path
       description: The order id
+      required: true
+      schema:
+        type: number
+        format: int32
+        minimum: 1
+    unreadOnly:
+      name: unreadOnly
+      in: query
+      description: Unread only
+      required: false
+      schema:
+        type: boolean
+        default: false
+    userId:
+      name: userId
+      in: path
+      description: The user id
+      required: true
+      schema:
+        type: number
+        format: int32
+        minimum: 1
+    productionUnitId:
+      name: productionUnitId
+      in: path
+      description: The production unit id
+      required: true
+      schema:
+        type: number
+        format: int32
+        minimum: 1
+    carrierId:
+      name: carrierId
+      in: path
+      description: The carrier id
+      required: true
+      schema:
+        type: number
+        format: int32
+        minimum: 1
+    producerId:
+      name: producerId
+      in: path
+      description: The producer id
+      required: true
+      schema:
+        type: number
+        format: int32
+        minimum: 1
+    productSpecId:
+      name: productSpecId
+      in: path
+      description: The product spec id
+      required: true
+      schema:
+        type: number
+        format: int32
+        minimum: 1
+    after:
+      name: after
+      in: query
+      description: After
+      required: false
+      schema:
+        type: string
+        format: date-time
+    before:
+      name: before
+      in: query
+      description: Before
+      required: false
+      schema:
+        type: string
+        format: date-time
+    dataInicio:
+      name: dataInicio
+      in: query
+      description: Start date
+      required: false
+      schema:
+        type: string
+        format: date-time
+    dataFim:
+      name: dataFim
+      in: query
+      description: End date
+      required: false
+      schema:
+        type: string
+        format: date-time
+    raio:
+      name: raio
+      in: query
+      description: Radius
+      required: false
+      schema:
+        type: number
+        format: float
+        minimum: 0
+    notificationId:
+      name: notificationId
+      in: path
+      description: The notification id
+      required: true
+      schema:
+        type: number
+        format: int32
+        minimum: 1
+    maxPrice:
+      name: maxPrice
+      in: query
+      description: Max price
+      required: false
+      schema:
+        type: number
+        format: float
+        minimum: 0
+    minPrice:
+      name: minPrice
+      in: query
+      description: Min price
+      required: false
+      schema:
+        type: number
+        format: float
+        minimum: 0
+    search:
+      name: search
+      in: query
+      description: Search
+      required: false
+      schema:
+        type: string
+    addressId:
+      name: addressId
+      in: query
+      description: The address id
       required: true
       schema:
         type: number
@@ -5096,3 +5239,65 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ExportOrderItem'
+    Notification:
+      type: object
+      properties:
+        id:
+          type: number
+          format: int32
+          readOnly: true
+        actor:
+          $ref: '#/components/schemas/User'
+          description: The user that triggered the notification
+        notifier:
+          $ref: '#/components/schemas/User'
+          description: The user that will receive the notification
+        createdAt:
+          type: string
+          format: date-time
+        readAt:
+          type: string
+          format: date-time
+        title:
+          type: string
+        message:
+          type: string
+      required:
+        - title
+        - message
+        - createdAt
+        - actor
+        - notifier
+    ProductSpecField:
+      type: object
+      properties:
+        productSpecCategory:
+          $ref: '#/components/schemas/ProductSpecCategory'
+        field:
+          $ref: '#/components/schemas/Field'
+        value:
+          type: string
+      required:
+        - value
+    ProductSpecCategory:
+      type: object
+      properties:
+        productSpec:
+          $ref: '#/components/schemas/ProductSpec'
+        category:
+          $ref: '#/components/schemas/Category'
+    ReportFlashcards:
+      type: object
+      additionalProperties: true
+    ReportMap:
+      type: object
+      additionalProperties: true
+    ReportProducts:
+      type: object
+      additionalProperties: true
+    ReportClients:
+      type: object
+      additionalProperties: true
+    ReportEvolution:
+      type: object
+      additionalProperties: true
