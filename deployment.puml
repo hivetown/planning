@@ -133,7 +133,7 @@ LB1 ----[hidden]down-> SD
 LB2 ----[hidden]down-> SD
 
 frame "Web Servers" as WS {
-    node "webserver-1...n" as WS1 {
+    node "webserver-1..n" as WS1 {
         interface "nic0" <<ens4 dynamic>> as WS1NIC0
 
         frame DockerCompose as WS1DockerCompose {
@@ -160,7 +160,7 @@ frame "Web Servers" as WS {
         There are <b>multiple web servers</b>
         , but only one is shown
         for arrow quantity <b>simplicity</b>,
-        hence the <i>...n</i> notation.
+        hence the <i>..n</i> notation.
     end note
     WS1 <. WSNote
     WS1 -[hidden]- WSNote
@@ -237,6 +237,8 @@ frame "Databases" as DB {
 
         ' MySQL to interface
         DB2NIC0 <-[#ff00ff]-> DB2MySQL : tcp:3306
+
+        DB2MySQL .[#DarkOrchid].> DB1MySQL : replication
 
         ' Keepalived VRRP
         DB2NIC0 <-[#green]> DB2Keepalived : VRRP
