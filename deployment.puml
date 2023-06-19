@@ -285,3 +285,12 @@ folder "hivetown-internal" {
     frame "database-eu-west4" <<10.0.128.0/18>>
     frame "database-backups-us-east1" <<10.0.112.0/20>>
 }
+
+folder "External Services" as Ext {
+    interface ExtInterface
+    frame "Mapbox" as Mapbox
+    frame "Stripe" as Stripe
+    frame "Firebase" as Firebase
+}
+ExtInterface - WS1API : https
+Client - ExtInterface : https
