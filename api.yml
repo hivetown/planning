@@ -13,36 +13,38 @@ servers:
   - url: https://hivetown.pt/api
 paths:
   /auth:
-    summary: Get authenticated user
-    operationId: getAuthenticatedUser
-    tags:
-      - auth
-    security:
-      - BearerAuth: []
-    responses:
-      '200':
-        content:
-          application/json:
-            schema:
-              type: object
-              oneOf:
-                - $ref: '#/components/schemas/Consumer'
-                - $ref: '#/components/schemas/Producer'
-              discriminator:
-                propertyName: user.type
-      '401':
-        description: Unauthorized
-        content:
-          application/json:
-            schema:
-              ref: '#/components/schemas/UnauthorizedError'
+    get:
+      summary: Get authenticated user
+      operationId: getAuthenticatedUser
+      tags:
+        - auth
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Authenticated User
+          content:
+            application/json:
+              schema:
+                type: object
+                oneOf:
+                  - $ref: '#/components/schemas/Consumer'
+                  - $ref: '#/components/schemas/Producer'
+                discriminator:
+                  propertyName: user.type
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
         '404':
           description: Not Found
           content:
             application/json:
               schema:
                 allOf:
-                  - ref: '#/components/schemas/NotFoundError'
+                  - $ref: '#/components/schemas/NotFoundError'
                   - oneOf:
                     - type: object
                       properties:
@@ -280,7 +282,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/NotFoundError'
-  /categories/{idCategory}/fields:
+  /categories/{categoryId}/fields:
     parameters:
       - $ref: '#/components/parameters/categoryId'
     get:
@@ -314,7 +316,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/NotFoundError'
-  /categories/{idCategory}/fields/{idField}:
+  /categories/{categoryId}/fields/{fieldId}:
     parameters:
       - $ref: '#/components/parameters/categoryId'
       - $ref: '#/components/parameters/fieldId'
@@ -648,6 +650,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/NotFoundError'
   /consumers/{consumerId}/reativate:
+    parameters:
+      - $ref: '#/components/parameters/consumerId'
     post:
       security:
         - BearerAuth: []
@@ -1139,7 +1143,7 @@ paths:
       security:
         - BearerAuth: []
       summary: Get the consumer orders
-      operationId: getConsumerOrders
+      operationId: getConsumerOrdersSuccess
       tags:
         - consumers
       parameters:
@@ -1320,7 +1324,7 @@ paths:
       security:
         - BearerAuth: []
       summary: Cancel a consumer order
-      operationId: cancelConsumerOrder
+      operationId: cancelAConsumerOrder
       tags:
         - consumers
       responses:
@@ -4197,7 +4201,7 @@ paths:
       - $ref: '#/components/parameters/userId'
     get:
       summary: Get products report
-      operationId: getProducts
+      operationId: getReportProducts
       tags:
         - reports
       parameters:
