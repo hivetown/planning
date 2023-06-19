@@ -291,6 +291,9 @@ folder "External Services" as Ext {
     frame "Mapbox" as Mapbox
     frame "Stripe" as Stripe
     frame "Firebase" as Firebase
+    ExtInterface - Mapbox : https
+    ExtInterface -- Stripe : https
+    ExtInterface -- Firebase : https
 }
 ExtInterface - WS1API : https
 Client - ExtInterface : https
